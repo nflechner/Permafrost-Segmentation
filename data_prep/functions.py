@@ -10,6 +10,8 @@ import rasterio
 import matplotlib.pyplot as plt
 from rasterio.plot import show
 from rasterio.mask import mask
+import os
+import json
 
 ##########
 ## code ##
@@ -30,7 +32,7 @@ class Crop_tif():
     Returns: directory of one cropped tif per 100x100 ruta.
     """
 
-    def __init__(self, img_path, rutor_path):
+    def __init__(self, img_path, rutor_path, destination_path):
 
         self.img_path = img_path
         self.img = rasterio.open(img_path)
@@ -39,10 +41,33 @@ class Crop_tif():
         self.rutor = gpd.read_file(rutor_path)
         self.img_rutor = self.filter_rutor()
 
+        self.destination_path = destination_path
+        self.cropped_tifs = self.crop_tif()
+
     def filter_rutor(self):
         minx, miny, maxx, maxy = self.img.bounds
         img_rutor = self.rutor.cx[minx:maxx, miny:maxy] # coordinates derived manually from plotting img
         return img_rutor
 
     def crop_tif(self):
-        pass
+        # Load the TIF file
+        tif_data = self.img.read()
+        tif_meta = self.img.meta
+
+        # Iterate over each polygon in the GeoDataFrame
+        for idx, polygon in enumerate(self.img_rutor.geometry):
+            # Crop the TIF file using the polygon
+            cropped_data, cropped_transform = mask(self.img, [polygon], crop=True)
+
+            # Update the metadata for the cropped TIF
+            cropped_meta = tif_meta.copy()
+            cropped_meta.update({"driver": "GTiff",
+                                "height": cropped_data.shape[1],
+                                "width": cropped_data.shape[2],
+                                "transform": cropped_transform})
+
+            # Save the cropped TIF file with a unique name
+            output_path = os.path.join(self.destination_path, f"cropped_{idx}.tif") # CHANGE THIS NAMING? 
+            with rasterio.open(output_path, "w", **cropped_meta) as dest:
+                dest.write(cropped_data)
+        
