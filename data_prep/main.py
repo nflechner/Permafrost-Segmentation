@@ -30,6 +30,10 @@ palsa_shapefile_path = config_paths.get('palsa_shapefile_path') # load shapefile
 save_crops_dir = config_paths.get('save_crops_dir') # load directory with all tifs
 original_tif_dir = config_paths.get('original_tif_dir') # load directory with all tifs
 
+print(palsa_shapefile_path)
+print(save_crops_dir)
+print(original_tif_dir)
+
 ##########
 ## code ##
 ##########
@@ -38,7 +42,11 @@ original_tif_dir = config_paths.get('original_tif_dir') # load directory with al
 palsa_tifs = filter_imgs(original_tif_dir) # returns a list of filenames to be cropped
 
 # load palsa shape path
-for img_path in palsa_tifs:
-    cropping = Crop_tif(img_path, palsa_shapefile_path, save_crops_dir)
+for img_name in palsa_tifs:
+    img_name_code = img_name.split('.')[0]
+    img_path = os.path.join(original_tif_dir, img_name)
+    cropping = Crop_tif(img_name_code, img_path, palsa_shapefile_path, save_crops_dir)
+    percentages = cropping.cropped_tifs_percentages
+    print(percentages)
 
 

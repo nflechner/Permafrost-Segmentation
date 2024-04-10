@@ -24,7 +24,9 @@ def filter_imgs(original_tif_dir):
     """
     # use filenaming system to obtain only relevant files
     # don't load the files, only the list of file (names) in dir.
-    pass
+    
+    #BELOW IS JUST A PLACEHOLDER:
+    return ["758_66_55_2018.tif"]
 
 class Crop_tif():
     """
@@ -32,7 +34,9 @@ class Crop_tif():
     Returns: directory of one cropped tif per 100x100 ruta.
     """
 
-    def __init__(self, img_path, rutor_path, destination_path):
+    def __init__(self, img_name_code, img_path, rutor_path, destination_path):
+
+        self.img_name_code = img_name_code
 
         self.img_path = img_path
         self.img = rasterio.open(img_path)
@@ -42,6 +46,7 @@ class Crop_tif():
         self.img_rutor = self.filter_rutor()
 
         self.destination_path = destination_path
+        self.cropped_tifs_percentages = {}
         self.cropped_tifs = self.crop_tif()
 
     def filter_rutor(self):
@@ -55,7 +60,7 @@ class Crop_tif():
         tif_meta = self.img.meta
 
         # Iterate over each polygon in the GeoDataFrame
-        for idx, polygon in enumerate(self.img_rutor.geometry):
+        for idx, percentage, polygon in zip(self.img_rutor.index, self.img_rutor.PALS, self.img_rutor.geometry):
             # Crop the TIF file using the polygon
             cropped_data, cropped_transform = mask(self.img, [polygon], crop=True)
 
@@ -67,7 +72,10 @@ class Crop_tif():
                                 "transform": cropped_transform})
 
             # Save the cropped TIF file with a unique name
-            output_path = os.path.join(self.destination_path, f"cropped_{idx}.tif") # CHANGE THIS NAMING? 
+            output_path = os.path.join(self.destination_path, f"{self.img_name_code}_crop_{idx}.tif") # CHANGE THIS NAMING? 
             with rasterio.open(output_path, "w", **cropped_meta) as dest:
                 dest.write(cropped_data)
+
+            # Write the corresponding percentage to a dictionary as label 
+            self.cropped_tifs_percentages[f"{self.img_name_code}_crop_{idx}"] = percentage
         
