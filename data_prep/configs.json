@@ -1,0 +1,10 @@
+{
+    "paths": {
+        "original_tif_dir": "/Users/nadja/Documents/UU/Thesis/data/Raster/OrthoRGB",
+        "palsa_shapefile_path": "/Users/nadja/Documents/UU/Thesis/data/Vector/palsaShape/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp",
+        "save_crops_dir": "/Users/nadja/Documents/UU/Thesis/generated_tifs"
+    },
+    "something": {
+        "something_else": "s3"
+    }
+}
