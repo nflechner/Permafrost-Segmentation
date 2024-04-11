@@ -44,7 +44,6 @@ for img_name in palsa_tifs:
     cropping = Crop_tif(img_name_code, img_path, palsa_shapefile_path, save_crops_dir)
     positive_labels = cropping.crop_rutor()
     negative_labels = cropping.crop_negatives()
-    print(positive_labels)
-    print(negative_labels)
+
 
 
