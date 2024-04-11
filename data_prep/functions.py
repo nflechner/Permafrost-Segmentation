@@ -12,7 +12,7 @@ from rasterio.plot import show
 from rasterio.mask import mask
 import os
 import json
-from shapely.geometry import box
+from shapely.geometry import box, Polygon
 
 ##########
 ## code ##
@@ -49,14 +49,20 @@ class Crop_tif():
         self.destination_path = destination_path
 
     def filter_rutor(self):
+
+        """
+        Find which 100x100 squares overlap with the current TIF
+        """
+
         minx, miny, maxx, maxy = self.img.bounds
         img_rutor = self.rutor.cx[minx:maxx, miny:maxy] # coordinates derived manually from plotting img
         return img_rutor
 
     def crop_rutor(self):
-        # Load the TIF file
-        tif_data = self.img.read()
-        tif_meta = self.img.meta
+
+        """
+        Crop TIF according to the polygons containing palsa. 
+        """
 
         cropped_tifs_percentages = {}
         # Iterate over each polygon in the GeoDataFrame
@@ -65,7 +71,7 @@ class Crop_tif():
             cropped_data, cropped_transform = mask(self.img, [polygon], crop=True)
 
             # Update the metadata for the cropped TIF
-            cropped_meta = tif_meta.copy()
+            cropped_meta = self.img.meta.copy()
             cropped_meta.update({"driver": "GTiff",
                                 "height": cropped_data.shape[1],
                                 "width": cropped_data.shape[2],
@@ -83,12 +89,17 @@ class Crop_tif():
     
     def generate_geoseries(self, bounds, crs):
 
+        """
+        Generates all 100x100m polygons present in a TIF.
+        Enables the negative sampling from the image. 
+        """
+
         # height and width of new squares 
-        square_dims = 200 # 200x200 pixels is 100x100 meters
+        square_dims = 100 # 100x100 meters
 
         # Calculate the number of segments in each dimension (tif width // desired width in pixels!)
-        segments_x = 10000 // square_dims
-        segments_y = 10000 // square_dims
+        segments_x = 5000 // square_dims
+        segments_y = 5000 // square_dims
 
         # Create an empty list to store the polygons
         polygons = []
@@ -103,7 +114,7 @@ class Crop_tif():
                 top = bottom + square_dims
 
                 # Create a polygon for the segment
-                polygon = box(left, bottom, right, top)
+                polygon = Polygon([(right, bottom), (left, bottom), (left, top), (right, top), (right, bottom)])
 
                 # Append the polygon to the list
                 polygons.append(polygon)
@@ -114,9 +125,48 @@ class Crop_tif():
 
     def crop_negatives(self):
 
-        num_to_sample = len(self.img_rutor)
-        all_rutor = 
+        """
+        Generates negative samples. Equal amount of negative as positive samples are
+        taken from each image such that the final dataset is 50/50 positive and negative. 
 
+            1) split the whole TIF into 100x100m polygons.
+            2) filter out the areas containing palsa (positive samples)
+            3) randomly sample as many negative samples as positive samples from that image
+            4) crop the TIF according to the sampled areas and write locally
 
-        # within the same images as the 
-        
+        """
+
+        # generate polygon for all 100x100m patches in the tif
+        all_rutor = self.generate_geoseries(self.img.bounds, self.img.crs)
+
+        # filter out the squares with palsa 
+        positives_mask = ~all_rutor.isin(self.img_rutor.geometry)
+        all_negatives = all_rutor[positives_mask]
+
+        # randomly sample 
+        sample_size = int(len(self.img_rutor)) # based on number of positive samples 
+        negative_samples = all_negatives.sample(n=sample_size) # sample randomly
+
+        cropped_tifs_percentages = {}
+        # Iterate over each polygon in the GeoDataFrame
+        for idx, polygon in enumerate(negative_samples.geometry):
+            # Crop the TIF file using the polygon
+            cropped_data, cropped_transform = mask(self.img, [polygon], crop=True)
+
+            # Update the metadata for the cropped TIF
+            cropped_meta = self.img.meta.copy()
+            cropped_meta.update({"driver": "GTiff",
+                                "height": cropped_data.shape[1],
+                                "width": cropped_data.shape[2],
+                                "transform": cropped_transform})
+
+            # Save the cropped TIF file with a unique name
+            output_path = os.path.join(self.destination_path, f"{self.img_name_code}_neg_crop_{idx}.tif") # CHANGE THIS NAMING? 
+            with rasterio.open(output_path, "w", **cropped_meta) as dest:
+                dest.write(cropped_data)
+
+            # Write the corresponding percentage to a dictionary as label 
+            cropped_tifs_percentages[f"{self.img_name_code}_neg_crop_{idx}"] = 0
+
+        return cropped_tifs_percentages
+                
