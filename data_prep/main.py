@@ -30,10 +30,6 @@ palsa_shapefile_path = config_paths.get('palsa_shapefile_path') # load shapefile
 save_crops_dir = config_paths.get('save_crops_dir') # load directory with all tifs
 original_tif_dir = config_paths.get('original_tif_dir') # load directory with all tifs
 
-print(palsa_shapefile_path)
-print(save_crops_dir)
-print(original_tif_dir)
-
 ##########
 ## code ##
 ##########
@@ -46,7 +42,9 @@ for img_name in palsa_tifs:
     img_name_code = img_name.split('.')[0]
     img_path = os.path.join(original_tif_dir, img_name)
     cropping = Crop_tif(img_name_code, img_path, palsa_shapefile_path, save_crops_dir)
-    percentages = cropping.cropped_tifs_percentages
-    print(percentages)
+    positive_labels = cropping.crop_rutor()
+    negative_labels = cropping.crop_negatives()
+    print(positive_labels)
+    print(negative_labels)
 
 

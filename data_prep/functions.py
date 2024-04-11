@@ -12,6 +12,7 @@ from rasterio.plot import show
 from rasterio.mask import mask
 import os
 import json
+from shapely.geometry import box
 
 ##########
 ## code ##
@@ -46,19 +47,18 @@ class Crop_tif():
         self.img_rutor = self.filter_rutor()
 
         self.destination_path = destination_path
-        self.cropped_tifs_percentages = {}
-        self.cropped_tifs = self.crop_tif()
 
     def filter_rutor(self):
         minx, miny, maxx, maxy = self.img.bounds
         img_rutor = self.rutor.cx[minx:maxx, miny:maxy] # coordinates derived manually from plotting img
         return img_rutor
 
-    def crop_tif(self):
+    def crop_rutor(self):
         # Load the TIF file
         tif_data = self.img.read()
         tif_meta = self.img.meta
 
+        cropped_tifs_percentages = {}
         # Iterate over each polygon in the GeoDataFrame
         for idx, percentage, polygon in zip(self.img_rutor.index, self.img_rutor.PALS, self.img_rutor.geometry):
             # Crop the TIF file using the polygon
@@ -77,5 +77,46 @@ class Crop_tif():
                 dest.write(cropped_data)
 
             # Write the corresponding percentage to a dictionary as label 
-            self.cropped_tifs_percentages[f"{self.img_name_code}_crop_{idx}"] = percentage
+            cropped_tifs_percentages[f"{self.img_name_code}_crop_{idx}"] = percentage
+
+        return cropped_tifs_percentages
+    
+    def generate_geoseries(self, bounds, crs):
+
+        # height and width of new squares 
+        square_dims = 200 # 200x200 pixels is 100x100 meters
+
+        # Calculate the number of segments in each dimension (tif width // desired width in pixels!)
+        segments_x = 10000 // square_dims
+        segments_y = 10000 // square_dims
+
+        # Create an empty list to store the polygons
+        polygons = []
+
+        # Iterate over the segments
+        for i in range(segments_y):
+            for j in range(segments_x):
+                # Calculate the coordinates of the segment
+                left = bounds.left + j * square_dims
+                bottom = bounds.bottom + i * square_dims
+                right = left + square_dims
+                top = bottom + square_dims
+
+                # Create a polygon for the segment
+                polygon = box(left, bottom, right, top)
+
+                # Append the polygon to the list
+                polygons.append(polygon)
+
+        # Create a GeoSeries from the list of polygons
+        all_rutor = gpd.GeoSeries(polygons, crs=crs)
+        return all_rutor
+
+    def crop_negatives(self):
+
+        num_to_sample = len(self.img_rutor)
+        all_rutor = 
+
+
+        # within the same images as the 
         
