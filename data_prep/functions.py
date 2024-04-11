@@ -145,7 +145,10 @@ class Crop_tif():
 
         # randomly sample 
         sample_size = int(len(self.img_rutor)) # based on number of positive samples 
-        negative_samples = all_negatives.sample(n=sample_size) # sample randomly
+        if sample_size <= len(negative_samples): # default case
+            negative_samples = all_negatives.sample(n=sample_size) # sample randomly
+        else:
+            negative_samples = all_negatives
 
         cropped_tifs_percentages = {}
         # Iterate over each polygon in the GeoDataFrame
