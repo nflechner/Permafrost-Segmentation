@@ -13,6 +13,7 @@ from rasterio.mask import mask
 import os
 import json
 from shapely.geometry import box, Polygon
+import logging
 
 ##########
 ## code ##
@@ -35,7 +36,7 @@ class Crop_tif():
     Returns: directory of one cropped tif per 100x100 ruta.
     """
 
-    def __init__(self, img_name_code, img_path, rutor_path, destination_path):
+    def __init__(self, img_name_code, img_path, rutor_path, destination_path, logger):
 
         self.img_name_code = img_name_code
 
@@ -47,6 +48,8 @@ class Crop_tif():
         self.img_rutor = self.filter_rutor()
 
         self.destination_path = destination_path
+
+        self.logger = logger
 
     def filter_rutor(self):
 
@@ -145,9 +148,10 @@ class Crop_tif():
 
         # randomly sample 
         sample_size = int(len(self.img_rutor)) # based on number of positive samples 
-        if sample_size <= len(negative_samples): # default case
+        if sample_size <= len(all_negatives): # default case
             negative_samples = all_negatives.sample(n=sample_size) # sample randomly
         else:
+            self.logger.info('Exception occurred! Number of positive samples > 1/2 image. Training set now contains fewer negative than positive samples.')
             negative_samples = all_negatives
 
         cropped_tifs_percentages = {}
