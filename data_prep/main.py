@@ -5,7 +5,7 @@
 # libraries 
 import geopandas as gpd
 import numpy as np 
-import pandas
+import pandas as pd
 import rasterio
 import matplotlib.pyplot as plt
 from rasterio.plot import show
@@ -75,6 +75,5 @@ for idx, img_name in enumerate(palsa_tifs):
     labels = labels | all_labels
     logger.info(f'Generated training samples from image {idx+1}/{len(palsa_tifs)}')
 
-
-
-
+label_df = pd.DataFrame.from_dict(labels, orient='index', columns = ['palsa_percentage'])
+label_df.to_csv(os.path.join(save_crops_dir, "palsa_labels.csv"))
