@@ -62,6 +62,8 @@ palsa_tifs = filter_imgs(original_tif_dir) # returns a list of filenames to be c
 logger.info(f'{len(palsa_tifs)} TIF paths have been loaded!')
 logger.info('Starting to generate training samples from TIFs..')
 
+labels = {}
+
 # load palsa shape path
 for idx, img_name in enumerate(palsa_tifs):
     img_name_code = img_name.split('.')[0]
@@ -69,6 +71,8 @@ for idx, img_name in enumerate(palsa_tifs):
     cropping = Crop_tif(img_name_code, img_path, palsa_shapefile_path, save_crops_dir, logger)
     positive_labels = cropping.crop_rutor()
     negative_labels = cropping.crop_negatives()
+    all_labels = positive_labels | negative_labels
+    labels = labels | all_labels
     logger.info(f'Generated training samples from image {idx+1}/{len(palsa_tifs)}')
 
 
