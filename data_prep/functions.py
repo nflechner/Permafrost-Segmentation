@@ -28,7 +28,7 @@ def filter_imgs(original_tif_dir):
     # don't load the files, only the list of file (names) in dir.
     
     #BELOW IS JUST A PLACEHOLDER:
-    return ["758_66_55_2018.tif"]
+    return ["758_66_55_2018.tif", "758_65_55_2018.tif", "758_66_50_2018.tif"]
 
 class Crop_tif():
     """
