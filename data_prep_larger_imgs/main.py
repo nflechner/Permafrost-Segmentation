@@ -48,6 +48,9 @@ palsa_shapefile_path = config_paths.get('palsa_shapefile_path') # load shapefile
 save_crops_dir = config_paths.get('save_crops_dir') # load directory with all tifs
 original_tif_dir = config_paths.get('original_tif_dir') # load directory with all tifs
 
+config_img = configs.get('image_info', {}) 
+dims = int(config_paths.get('meters_per_axis')) # load shapefile path
+
 logger.info('Configurations were loaded')
 
 ##########
@@ -68,7 +71,7 @@ labels = {}
 for idx, img_name in enumerate(palsa_tifs):
     img_name_code = img_name.split('.')[0]
     img_path = os.path.join(original_tif_dir, img_name)
-    cropping = Crop_tif(img_name_code, img_path, palsa_shapefile_path, save_crops_dir, logger)
+    cropping = Crop_tif(img_name_code, img_path, palsa_shapefile_path, save_crops_dir, dims, logger)
     positive_labels = cropping.crop_rutor()
     negative_labels = cropping.crop_negatives()
     all_labels = positive_labels | negative_labels

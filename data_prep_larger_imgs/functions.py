@@ -36,30 +36,34 @@ class Crop_tif():
     Returns: directory of one cropped tif per 100x100 ruta.
     """
 
-    def __init__(self, img_name_code, img_path, rutor_path, destination_path, logger):
+    def __init__(self, img_name_code, img_path, rutor_path, destination_path, dims, logger):
 
         self.img_name_code = img_name_code
-
-        self.img_path = img_path
-        self.img = rasterio.open(img_path)
-
-        self.rutor_path = rutor_path
-        self.rutor = gpd.read_file(rutor_path)
-        self.img_rutor = self.filter_rutor()
-
+        self.dimensions = dims
+        print(self.dimensions)
         self.destination_path = destination_path
-
         self.logger = logger
+        self.img_path = img_path
+        self.rutor_path = rutor_path
+
+        self.img = rasterio.open(img_path)
+        self.rutor = gpd.read_file(rutor_path)
+        self.filtered_rutor = self.filter_rutor()
+        self.img_rutor = self.reshape_rutor() # this will at some point have as input the filtered rutor. 
 
     def filter_rutor(self):
-
-        """
-        Find which 100x100 squares overlap with the current TIF
-        """
+        # Find which 100x100 squares overlap with the current TIF
 
         minx, miny, maxx, maxy = self.img.bounds
         img_rutor = self.rutor.cx[minx:maxx, miny:maxy] # coordinates derived manually from plotting img
         return img_rutor
+    
+    def reshape_rutor(self):
+        # Reshape rutor according to dims 
+
+        new_dim_rutor = self.generate_geoseries(self.img.bounds, self.img.crs, self.dimensions)
+        return new_dim_rutor
+
 
     def crop_rutor(self):
 
@@ -90,7 +94,7 @@ class Crop_tif():
 
         return cropped_tifs_percentages
     
-    def generate_geoseries(self, bounds, crs):
+    def generate_geoseries(self, bounds, crs, dims):
 
         """
         Generates all 100x100m polygons present in a TIF.
@@ -98,7 +102,7 @@ class Crop_tif():
         """
 
         # height and width of new squares 
-        square_dims = 100 # 100x100 meters
+        square_dims = dims # 100x100 meters
 
         # Calculate the number of segments in each dimension (tif width // desired width in pixels!)
         segments_x = 5000 // square_dims
@@ -140,7 +144,7 @@ class Crop_tif():
         """
 
         # generate polygon for all 100x100m patches in the tif
-        all_rutor = self.generate_geoseries(self.img.bounds, self.img.crs)
+        all_rutor = self.generate_geoseries(self.img.bounds, self.img.crs, dims = 100)
 
         # filter out the squares with palsa 
         positives_mask = ~all_rutor.isin(self.img_rutor.geometry)
