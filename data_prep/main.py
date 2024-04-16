@@ -48,6 +48,9 @@ palsa_shapefile_path = config_paths.get('palsa_shapefile_path') # load shapefile
 save_crops_dir = config_paths.get('save_crops_dir') # load directory with all tifs
 original_tif_dir = config_paths.get('original_tif_dir') # load directory with all tifs
 
+config_img = configs.get('image_info', {}) 
+dims = int(config_paths.get('meters_per_axis')) 
+
 logger.info('Configurations were loaded')
 
 ##########
