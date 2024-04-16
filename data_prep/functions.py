@@ -19,6 +19,18 @@ import logging
 ## code ##
 ##########
 
+def file_naming_logic(img):
+    "USE THIS LOGIC IN filter_imgs FUNCTION. MAYBE USE IT THE OTHER WAY AROUND> "
+
+    miny = str(img.bounds.bottom)[0:3]
+    minx = str(img.bounds.left)[0:2]
+    km_siffran_y = 0 if int(str(img.bounds.bottom)[3]) < 5 else 5
+    km_siffran_x = 0 if int(str(img.bounds.left)[2]) < 5 else 5
+    year = 2018
+
+    filename = f"{miny}_{minx}_{km_siffran_y}{km_siffran_x}_{year}.tif"
+    return filename
+
 def filter_imgs(original_tif_dir):
     """
     In: directory of all tifs of sweden
