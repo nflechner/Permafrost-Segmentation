@@ -5,6 +5,6 @@
         "save_crops_dir": "/Users/nadja/Documents/UU/Thesis/generated_tifs/"
     },
     "image_info": {
-        "meters_per_axis": 200
+        "meters_per_axis": 100
     }
 }
