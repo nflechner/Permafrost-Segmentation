@@ -20,7 +20,7 @@ import logging
 ##########
 
 def file_naming_logic(img):
-    "USE THIS LOGIC IN filter_imgs FUNCTION. MAYBE USE IT THE OTHER WAY AROUND> "
+    "USE THIS LOGIC IN filter_imgs FUNCTION. MAYBE USE IT THE OTHER WAY AROUND"
 
     miny = str(img.bounds.bottom)[0:3]
     minx = str(img.bounds.left)[0:2]
