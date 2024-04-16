@@ -15,7 +15,7 @@ import json
 import logging
 
 # functions 
-from functions import filter_imgs, Crop_tif, Crop_tif_varsize
+from functions import filter_imgs, Crop_tif_varsize
 
 
 ##################
@@ -71,20 +71,11 @@ labels = {}
 for idx, img_name in enumerate(palsa_tifs):
     img_name_code = img_name.split('.')[0]
     img_path = os.path.join(original_tif_dir, img_name)
-    if dims == 100:
-        cropping = Crop_tif(img_name_code, img_path, palsa_shapefile_path, save_crops_dir, logger)
-        positive_labels = cropping.crop_rutor()
-        negative_labels = cropping.crop_negatives()
-        all_labels = positive_labels | negative_labels
-        labels = labels | all_labels
-        logger.info(f'Generated training samples from image {idx+1}/{len(palsa_tifs)}')
-    else:
-        cropping = Crop_tif_varsize(img_name_code, img_path, palsa_shapefile_path, save_crops_dir, dims, logger)
-        positive_labels = cropping.crop_rutor()
-        negative_labels = cropping.crop_negatives()
-        all_labels = positive_labels | negative_labels
-        labels = labels | all_labels
-        logger.info(f'Generated training samples from image {idx+1}/{len(palsa_tifs)}')
+
+    cropping = Crop_tif_varsize(img_name_code, img_path, palsa_shapefile_path, save_crops_dir, dims, logger)
+    new_labels = cropping.forward()
+    labels = labels | new_labels
+    logger.info(f'Generated training samples from image {idx+1}/{len(palsa_tifs)}')
 
 label_df = pd.DataFrame.from_dict(labels, orient='index', columns = ['palsa_percentage'])
 label_df.to_csv(os.path.join(save_crops_dir, "palsa_labels.csv"))

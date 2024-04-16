@@ -5,7 +5,7 @@
 # libraries 
 import geopandas as gpd
 import numpy as np 
-import pandas
+import pandas as pd
 import rasterio
 import matplotlib.pyplot as plt
 from rasterio.plot import show
@@ -60,65 +60,62 @@ class Crop_tif_varsize():
 
         self.img_name_code = img_name_code
         self.dimensions = dims
-        print(self.dimensions)
         self.destination_path = destination_path
         self.logger = logger
         self.img_path = img_path
         self.rutor_path = rutor_path
 
         self.img = rasterio.open(img_path)
-        self.rutor = gpd.read_file(rutor_path)
         self.filtered_rutor = self.filter_rutor()
-        self.img_rutor = self.reshape_rutor() # this will at some point have as input the filtered rutor. 
+
+    def forward(self):
+
+        # generate all possible polygons in the image of dim x dim 
+        generated_polygons_all = self.generate_geoseries(self.img.bounds, self.img.crs, self.dimensions) 
+        generated_polygons_palsa = self.palsa_polygons(generated_polygons_all)
+        positive_labels = self.crop_palsa_imgs(generated_polygons_palsa)
+        negative_labels = self.crop_negatives(generated_polygons_all, generated_polygons_palsa)
+        all_labels = positive_labels | negative_labels
+        return all_labels
 
     def filter_rutor(self):
         # Find which 100x100 squares overlap with the current TIF
-
+        rutor = gpd.read_file(self.rutor_path)
         minx, miny, maxx, maxy = self.img.bounds
-        img_rutor = self.rutor.cx[minx:maxx, miny:maxy] # coordinates derived manually from plotting img
+        img_rutor = rutor.cx[minx:maxx, miny:maxy] # coordinates derived manually from plotting img
         return img_rutor
     
-    def reshape_rutor(self):
-        # Reshape rutor according to dims 
-
-        new_dim_rutor = self.generate_geoseries(self.img.bounds, self.img.crs, self.dimensions)
-        return new_dim_rutor
-
-
-    def crop_rutor(self):
-
-        """
-        Crop TIF according to the polygons containing palsa. 
-        """
-
-        cropped_tifs_percentages = {}
-        # Iterate over each polygon in the GeoDataFrame
-        for idx, percentage, polygon in zip(self.img_rutor.index, self.img_rutor.PALS, self.img_rutor.geometry):
-            # Crop the TIF file using the polygon
-            cropped_data, cropped_transform = mask(self.img, [polygon], crop=True)
-
-            # Update the metadata for the cropped TIF
-            cropped_meta = self.img.meta.copy()
-            cropped_meta.update({"driver": "GTiff",
-                                "height": cropped_data.shape[1],
-                                "width": cropped_data.shape[2],
-                                "transform": cropped_transform})
-
-            # Save the cropped TIF file with a unique name
-            output_path = os.path.join(self.destination_path, f"{self.img_name_code}_crop_{idx}.tif") # CHANGE THIS NAMING? 
-            with rasterio.open(output_path, "w", **cropped_meta) as dest:
-                dest.write(cropped_data)
-
-            # Write the corresponding percentage to a dictionary as label 
-            cropped_tifs_percentages[f"{self.img_name_code}_crop_{idx}"] = percentage
-
-        return cropped_tifs_percentages
+    def new_palsa_percentage(self, big_ruta, joined_df):
+        contained_rutor = joined_df.loc[joined_df['name'] == big_ruta]
+        total_pals_percentage = contained_rutor['PALS'].sum()
+        percentage_factor = self.dimensions **2 / 10000 
+        palsa_percentage = total_pals_percentage / percentage_factor
+        return palsa_percentage
     
+    def palsa_polygons(self, generated_polygons_all):
+
+        # if 100x100 meter is used, the original rutor are used
+        if self.dimensions == 100:
+            return self.filtered_rutor
+
+        # if not 100x100, find which polygons have palsa rutor in them
+        d = {'name': [i for i in range(len(generated_polygons_all))]}
+        generated_polygons_all_df = gpd.GeoDataFrame(d, geometry = generated_polygons_all, crs=generated_polygons_all.crs)
+
+        # Perform a spatial join between generated_polygons_all and filtered_rutor 
+        joined_df = gpd.sjoin(generated_polygons_all_df, self.filtered_rutor, how='inner', op = 'contains')
+        covering_polygons_index = joined_df.index.unique() # find uniques
+        result_df = generated_polygons_all_df.loc[covering_polygons_index] # select polygons that cover a smaller polygon
+
+        # Generate palsa column in the resulting big ruta dataframe
+        result_df['PALS'] = result_df['name'].apply(lambda x: self.new_palsa_percentage(x, joined_df))
+
+        return result_df
+
     def generate_geoseries(self, bounds, crs, dims):
 
         """
-        Generates all 100x100m polygons present in a TIF.
-        Enables the negative sampling from the image. 
+        Generates all dim x dim polygons present in a TIF.
         """
 
         # height and width of new squares 
@@ -147,92 +144,9 @@ class Crop_tif_varsize():
                 polygons.append(polygon)
 
         # Create a GeoSeries from the list of polygons
-        all_rutor = gpd.GeoSeries(polygons, crs=crs)
-        return all_rutor
+        return gpd.GeoSeries(polygons, crs=crs)
 
-    def crop_negatives(self):
-
-        """
-        Generates negative samples. Equal amount of negative as positive samples are
-        taken from each image such that the final dataset is 50/50 positive and negative. 
-
-            1) split the whole TIF into 100x100m polygons.
-            2) filter out the areas containing palsa (positive samples)
-            3) randomly sample as many negative samples as positive samples from that image
-            4) crop the TIF according to the sampled areas and write locally
-
-        """
-
-        # generate polygon for all 100x100m patches in the tif
-        all_rutor = self.generate_geoseries(self.img.bounds, self.img.crs, dims = 100)
-
-        # filter out the squares with palsa 
-        positives_mask = ~all_rutor.isin(self.img_rutor.geometry)
-        all_negatives = all_rutor[positives_mask]
-
-        # randomly sample 
-        sample_size = int(len(self.img_rutor)) # based on number of positive samples 
-        if sample_size <= len(all_negatives): # default case
-            negative_samples = all_negatives.sample(n=sample_size) # sample randomly
-        else:
-            self.logger.info('Exception occurred! Number of positive samples > 1/2 image. Training set now contains fewer negative than positive samples.')
-            negative_samples = all_negatives
-
-        cropped_tifs_percentages = {}
-        # Iterate over each polygon in the GeoDataFrame
-        for idx, polygon in enumerate(negative_samples.geometry):
-            # Crop the TIF file using the polygon
-            cropped_data, cropped_transform = mask(self.img, [polygon], crop=True)
-
-            # Update the metadata for the cropped TIF
-            cropped_meta = self.img.meta.copy()
-            cropped_meta.update({"driver": "GTiff",
-                                "height": cropped_data.shape[1],
-                                "width": cropped_data.shape[2],
-                                "transform": cropped_transform})
-
-            # Save the cropped TIF file with a unique name
-            output_path = os.path.join(self.destination_path, f"{self.img_name_code}_neg_crop_{idx}.tif") # CHANGE THIS NAMING? 
-            with rasterio.open(output_path, "w", **cropped_meta) as dest:
-                dest.write(cropped_data)
-
-            # Write the corresponding percentage to a dictionary as label 
-            cropped_tifs_percentages[f"{self.img_name_code}_neg_crop_{idx}"] = 0
-
-        return cropped_tifs_percentages
-                
-class Crop_tif():
-    """
-    In: tif image to be cropped, and whole extent of 100x100 rutor
-    Returns: directory of one cropped tif per 100x100 ruta.
-    """
-
-    def __init__(self, img_name_code, img_path, rutor_path, destination_path, logger):
-
-        self.img_name_code = img_name_code
-
-        self.img_path = img_path
-        self.img = rasterio.open(img_path)
-
-        self.rutor_path = rutor_path
-        self.rutor = gpd.read_file(rutor_path)
-        self.img_rutor = self.filter_rutor()
-
-        self.destination_path = destination_path
-
-        self.logger = logger
-
-    def filter_rutor(self):
-
-        """
-        Find which 100x100 squares overlap with the current TIF
-        """
-
-        minx, miny, maxx, maxy = self.img.bounds
-        img_rutor = self.rutor.cx[minx:maxx, miny:maxy] # coordinates derived manually from plotting img
-        return img_rutor
-
-    def crop_rutor(self):
+    def crop_palsa_imgs(self, palsa_rutor):
 
         """
         Crop TIF according to the polygons containing palsa. 
@@ -240,7 +154,7 @@ class Crop_tif():
 
         cropped_tifs_percentages = {}
         # Iterate over each polygon in the GeoDataFrame
-        for idx, percentage, polygon in zip(self.img_rutor.index, self.img_rutor.PALS, self.img_rutor.geometry):
+        for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry):
             # Crop the TIF file using the polygon
             cropped_data, cropped_transform = mask(self.img, [polygon], crop=True)
 
@@ -260,44 +174,8 @@ class Crop_tif():
             cropped_tifs_percentages[f"{self.img_name_code}_crop_{idx}"] = percentage
 
         return cropped_tifs_percentages
-    
-    def generate_geoseries(self, bounds, crs):
 
-        """
-        Generates all 100x100m polygons present in a TIF.
-        Enables the negative sampling from the image. 
-        """
-
-        # height and width of new squares 
-        square_dims = 100 # 100x100 meters
-
-        # Calculate the number of segments in each dimension (tif width // desired width in pixels!)
-        segments_x = 5000 // square_dims
-        segments_y = 5000 // square_dims
-
-        # Create an empty list to store the polygons
-        polygons = []
-
-        # Iterate over the segments
-        for i in range(segments_y):
-            for j in range(segments_x):
-                # Calculate the coordinates of the segment
-                left = bounds.left + j * square_dims
-                bottom = bounds.bottom + i * square_dims
-                right = left + square_dims
-                top = bottom + square_dims
-
-                # Create a polygon for the segment
-                polygon = Polygon([(right, bottom), (left, bottom), (left, top), (right, top), (right, bottom)])
-
-                # Append the polygon to the list
-                polygons.append(polygon)
-
-        # Create a GeoSeries from the list of polygons
-        all_rutor = gpd.GeoSeries(polygons, crs=crs)
-        return all_rutor
-
-    def crop_negatives(self):
+    def crop_negatives(self, generated_polygons_all, generated_polygons_palsa):
 
         """
         Generates negative samples. Equal amount of negative as positive samples are
@@ -310,15 +188,12 @@ class Crop_tif():
 
         """
 
-        # generate polygon for all 100x100m patches in the tif
-        all_rutor = self.generate_geoseries(self.img.bounds, self.img.crs)
-
         # filter out the squares with palsa 
-        positives_mask = ~all_rutor.isin(self.img_rutor.geometry)
-        all_negatives = all_rutor[positives_mask]
+        positives_mask = ~generated_polygons_all.isin(generated_polygons_palsa.geometry)
+        all_negatives = generated_polygons_all[positives_mask]
 
         # randomly sample 
-        sample_size = int(len(self.img_rutor)) # based on number of positive samples 
+        sample_size = int(len(generated_polygons_palsa)) # based on number of positive samples 
         if sample_size <= len(all_negatives): # default case
             negative_samples = all_negatives.sample(n=sample_size) # sample randomly
         else:
