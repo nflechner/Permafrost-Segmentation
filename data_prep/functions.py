@@ -19,28 +19,36 @@ import logging
 ## code ##
 ##########
 
-def file_naming_logic(img):
-    "USE THIS LOGIC IN filter_imgs FUNCTION. MAYBE USE IT THE OTHER WAY AROUND"
+def tif_from_ruta(ruta_geometry):
+    minx_ruta = ruta_geometry.bounds[0]
+    miny_ruta = ruta_geometry.bounds[1]
 
-    miny = str(img.bounds.bottom)[0:3]
-    minx = str(img.bounds.left)[0:2]
-    km_siffran_y = 0 if int(str(img.bounds.bottom)[3]) < 5 else 5
-    km_siffran_x = 0 if int(str(img.bounds.left)[2]) < 5 else 5
+    miny = str(miny_ruta)[0:3]
+    minx = str(minx_ruta)[0:2]
+    km_siffran_y = 0 if int(str(miny_ruta)[3]) < 5 else 5
+    km_siffran_x = 0 if int(str(minx_ruta)[2]) < 5 else 5
     year = 2018
 
     filename = f"{miny}_{minx}_{km_siffran_y}{km_siffran_x}_{year}.tif"
     return filename
 
-def filter_imgs(original_tif_dir):
-    """
-    In: directory of all tifs of sweden
-    Returns: filenames of the images containing palsa
-    """
-    # use filenaming system to obtain only relevant files
-    # don't load the files, only the list of file (names) in dir.
-    
-    #BELOW IS JUST A PLACEHOLDER:
-    return ["758_66_55_2018.tif", "758_65_55_2018.tif", "758_66_50_2018.tif"]
+
+def filter_imgs(all_rutor_path, original_tif_dir):
+    all_rutor = gpd.read_file(all_rutor_path)
+    all_rutor['in_tif'] = all_rutor['geometry'].map(tif_from_ruta)
+    uniques = all_rutor.in_tif.unique()
+
+    dir_files = os.listdir(original_tif_dir)
+    only_tifs = [filename for filename in dir_files if filename[-4:] == ".tif"]
+
+    # check that all uniques are in only tifs
+    if not (set(list(uniques)).issubset(set(only_tifs))):
+        # logger.WARN(f"at least one tif name generated from all_rutor was not found in the directory: {original_tif_dir}")
+        print(f"at least one tif name generated from all_rutor was not found in the directory: {original_tif_dir}")
+
+    intersection = list(set(uniques) & set(only_tifs))
+
+    return intersection
 
 class Crop_tif():
     """

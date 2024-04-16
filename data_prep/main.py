@@ -57,7 +57,7 @@ logger.info('Configurations were loaded')
 logger.info('Starting to sample relevant TIF paths...')
 
 # extract tif file names which contain palsa
-palsa_tifs = filter_imgs(original_tif_dir) # returns a list of filenames to be cropped
+palsa_tifs = filter_imgs(palsa_shapefile_path, original_tif_dir) # returns a list of filenames to be cropped
 
 logger.info(f'{len(palsa_tifs)} TIF paths have been loaded!')
 logger.info('Starting to generate training samples from TIFs..')
