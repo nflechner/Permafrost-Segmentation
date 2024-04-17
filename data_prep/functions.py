@@ -76,6 +76,7 @@ class Crop_tif_varsize():
         positive_labels = self.crop_palsa_imgs(generated_polygons_palsa)
         negative_labels = self.crop_negatives(generated_polygons_all, generated_polygons_palsa)
         all_labels = positive_labels | negative_labels
+        self.img.close()
         return all_labels
 
     def filter_rutor(self):
