@@ -15,7 +15,7 @@ import json
 import logging
 
 # functions 
-from functions import filter_imgs, Crop_tif_varsize
+from functions import filter_imgs, Crop_tif
 
 
 ##################
@@ -49,7 +49,7 @@ save_crops_dir = config_paths.get('save_crops_dir') # load directory with all ti
 original_tif_dir = config_paths.get('original_tif_dir') # load directory with all tifs
 
 config_img = configs.get('image_info', {}) 
-dims = int(config_img.get('meters_per_axis')) 
+dims = int(config_paths.get('meters_per_axis')) 
 
 logger.info('Configurations were loaded')
 
@@ -71,10 +71,11 @@ labels = {}
 for idx, img_name in enumerate(palsa_tifs):
     img_name_code = img_name.split('.')[0]
     img_path = os.path.join(original_tif_dir, img_name)
-
-    cropping = Crop_tif_varsize(img_name_code, img_path, palsa_shapefile_path, save_crops_dir, dims, logger)
-    new_labels = cropping.forward()
-    labels = labels | new_labels
+    cropping = Crop_tif(img_name_code, img_path, palsa_shapefile_path, save_crops_dir, logger)
+    positive_labels = cropping.crop_rutor()
+    negative_labels = cropping.crop_negatives()
+    all_labels = positive_labels | negative_labels
+    labels = labels | all_labels
     logger.info(f'Generated training samples from image {idx+1}/{len(palsa_tifs)}')
 
 label_df = pd.DataFrame.from_dict(labels, orient='index', columns = ['palsa_percentage'])
