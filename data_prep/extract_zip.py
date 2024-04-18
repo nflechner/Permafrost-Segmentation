@@ -1,0 +1,31 @@
+import os
+import zipfile
+import pandas as pd
+
+def extract_files(zip_path, filenames, output_folder):
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        for filename in filenames:
+            try:
+                zip_ref.extract(filename, output_folder)
+            except KeyError:
+                print(f"File '{filename}' not found in the zipfile.")
+
+# Specify the path to your zipfile
+zip_path = 'home/circ/Data/SpatialEcology_Lab/Siewert/ortoRgb.zip'
+
+# Specify the list of filenames you want to extract
+
+###################
+#CHANGE DIRECTORY!#
+###################
+names = pd.read_csv('/Users/nadja/Documents/UU/Thesis/palsa_seg/data_prep/filenames_to_use.csv', header=None, names=['files'])
+filenames_to_extract = names.files.tolist()
+
+# Specify the output folder where the extracted files will be saved
+output_folder = 'home/circ/Data/SpatialEcology_Lab/Siewert/filtered_tifs'
+
+# Create the output folder if it doesn't exist
+os.makedirs(output_folder, exist_ok=True)
+
+# Call the function to extract the files
+extract_files(zip_path, filenames_to_extract, output_folder)
