@@ -18,11 +18,11 @@ zip_path = 'home/circ/Data/SpatialEcology_Lab/Siewert/ortoRgb.zip'
 ###################
 #CHANGE DIRECTORY!#
 ###################
-names = pd.read_csv('/Users/nadja/Documents/UU/Thesis/palsa_seg/data_prep/filenames_to_use.csv', header=None, names=['files'])
+names = pd.read_csv('/home/nadjaflechner/palsa_seg/data_prep/filenames_to_use.csv', header=None, names=['files'])
 filenames_to_extract = names.files.tolist()
 
 # Specify the output folder where the extracted files will be saved
-output_folder = 'home/circ/Data/SpatialEcology_Lab/Siewert/filtered_tifs'
+output_folder = 'home/nadjaflechner/filtered_tifs'
 
 # Create the output folder if it doesn't exist
 os.makedirs(output_folder, exist_ok=True)
