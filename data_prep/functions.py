@@ -82,9 +82,10 @@ class Crop_tif_varsize():
     def filter_rutor(self):
         # Find which 100x100 squares overlap with the current TIF
         rutor = gpd.read_file(self.rutor_path)
-        minx, miny, maxx, maxy = self.img.bounds
-        img_rutor = rutor.cx[minx:maxx, miny:maxy] # coordinates derived manually from plotting img
-        return img_rutor
+        image_polygon = box(*self.img.bounds)
+        cropped_polygons = rutor[rutor.geometry.apply(lambda x: x.intersection(image_polygon).equals(x))]
+
+        return cropped_polygons
     
     def new_palsa_percentage(self, big_ruta, joined_df):
         contained_rutor = joined_df.loc[joined_df['name'] == big_ruta]
