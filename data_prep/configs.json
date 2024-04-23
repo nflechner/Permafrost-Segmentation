@@ -1,9 +1,8 @@
 {
     "paths": {
-        "original_tif_dir": "/Users/nadja/Documents/UU/Thesis/data/Raster/OrthoRGB/",
-        "filtered_filenames_palsa_tifs": "/Users/nadja/Documents/UU/Thesis/palsa_seg/data_prep/filenames_to_use.csv",
-        "palsa_shapefile_path": "/Users/nadja/Documents/UU/Thesis/data/Vector/palsaShape/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp",
-        "save_crops_dir": "/Users/nadja/Documents/UU/Thesis/new_generated_tifs/"
+        "original_tif_dir": "/home/nadjaflechner/Palsa_data/filtered_tifs/",
+        "palsa_shapefile_path": "/home/nadjaflechner/palsa_seg/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp",
+        "save_crops_dir": "/home/nadjaflechner/Palsa_data/dataset_100m/"
     },
     "image_info": {
         "meters_per_axis": 100

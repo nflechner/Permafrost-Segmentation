@@ -46,7 +46,6 @@ config_paths = configs.get('paths', {})
 palsa_shapefile_path = config_paths.get('palsa_shapefile_path') # load shapefile path
 save_crops_dir = config_paths.get('save_crops_dir') # load directory with all tifs
 original_tif_dir = config_paths.get('original_tif_dir') # load directory with all tifs
-filtered_filenames_palsa_tifs = config_paths.get('filtered_filenames_palsa_tifs') # load directory with all tifs
 
 config_img = configs.get('image_info', {}) 
 dims = int(config_img.get('meters_per_axis')) 
@@ -60,9 +59,7 @@ logger.info('Configurations were loaded')
 logger.info('Starting to sample relevant TIF paths...')
 
 # extract tif file names which contain palsa
-# palsa_tifs = filter_imgs(palsa_shapefile_path, original_tif_dir) # returns a list of filenames to be cropped
-names = pd.read_csv(filtered_filenames_palsa_tifs, header=None, names=['files'])
-palsa_tifs = names.files.tolist()
+palsa_tifs = os.listdir(original_tif_dir)
 
 logger.info(f'{len(palsa_tifs)} TIF paths have been loaded!')
 logger.info('Starting to generate training samples from TIFs..')
