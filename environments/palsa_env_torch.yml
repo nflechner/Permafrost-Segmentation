@@ -73,7 +73,7 @@ dependencies:
   - libev=4.33
   - libffi=3.4.4
   - libgdal=3.6.2
-  - libgfortran=5.0.0
+  - libgfortran
   - libgfortran5=11.3.0
   - libglib=2.78.4
   - libiconv=1.16
