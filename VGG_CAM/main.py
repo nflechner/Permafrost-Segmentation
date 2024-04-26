@@ -26,15 +26,14 @@ labels_file = "/Users/nadja/Documents/UU/Thesis/Data/100m_palsa_labels.csv"
 labels_df = pd.read_csv(labels_file, index_col=0).head(100)
 
 # Split the dataset into training and validation sets
-train_df = labels_df.head(800)
+train_df = labels_df.head(80)
 val_df = labels_df.drop(train_df.index)
 
 # Create the datasets and data loaders
 train_dataset = ImageDataset(image_dir, train_df )
 val_dataset = ImageDataset(image_dir, val_df )
-train_loader = DataLoader(train_dataset, batch_size=20, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=20, shuffle=False)
-
+train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=2, shuffle=False)
 
 
 
@@ -43,15 +42,31 @@ val_loader = DataLoader(val_dataset, batch_size=20, shuffle=False)
 
 model = vgg19()
 
+#freeze layers
+for param in model.parameters():
+    param.requires_grad = False
 
+#modify the last two convolutions
+model.features[-5] = nn.Conv2d(512,512,3, padding=1)
+model.features[-3] = nn.Conv2d(512,2,3, padding=1)
 
+#remove fully connected layer and replace it with AdaptiveAvePooling
+model.classifier = nn.Sequential(
+                                nn.AdaptiveAvgPool2d(1),
+                                nn.Flatten(),
+                                nn.LogSoftmax()
+                                )
 
 ########################################################################
 
-# VGG = models.vgg16_bn(pretrained = True)
-VGG.eval()
-weights = models.VGG16_BN_Weights.DEFAULT
+weights = models.VGG19_Weights.DEFAULT
 transforms = weights.transforms()
+
+
+# DON'T FORGET TO TRANSFORM BATCH!
+
+
+
 
 for imgs, labels in train_loader:
     first_batch = imgs
