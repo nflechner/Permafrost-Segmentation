@@ -67,6 +67,5 @@ def make_layers(batch_norm=False):
 
 def vgg19():
     model = VGG(make_layers())
-    state_dict = torch.load('https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
-    model.load_state_dict(state_dict)
+
     return model
