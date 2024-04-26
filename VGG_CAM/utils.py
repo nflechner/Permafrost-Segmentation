@@ -12,7 +12,6 @@ from torchvision import models, transforms
 import matplotlib.pyplot as plt
 from torch import Tensor
 
-
 class ImageDataset(Dataset):
     def __init__(self, image_dir, labels_df):
         self.image_dir = image_dir
