@@ -64,3 +64,9 @@ def make_layers(batch_norm=False):
                 layers += [conv2d, nn.ReLU(inplace=True)]
             in_channels = v
     return nn.Sequential(*layers)
+
+def vgg19():
+    model = VGG(make_layers())
+    state_dict = torch.load('ignore/vgg19-dcbb9e9d.pth')
+    model.load_state_dict(state_dict)
+    return model
