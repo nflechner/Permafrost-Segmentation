@@ -9,6 +9,8 @@
 
 import torch.nn as nn
 import torch
+from torchvision import models
+
 class VGG(nn.Module):
 
     def __init__(self, features, num_classes=1000, init_weights=False): # INITWEIGHTS SHOULD BE TRUE 
@@ -67,6 +69,6 @@ def make_layers(batch_norm=False):
 
 def vgg19():
     model = VGG(make_layers())
-    # state_dict = torch.load('ignore/vgg19-dcbb9e9d.pth')
-    # model.load_state_dict(state_dict)
+    state_dict = models.VGG19_Weights.DEFAULT.get_state_dict(progress=True)
+    model.load_state_dict(state_dict)
     return model
