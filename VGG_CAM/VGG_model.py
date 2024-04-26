@@ -11,7 +11,7 @@ import torch.nn as nn
 import torch
 class VGG(nn.Module):
 
-    def __init__(self, features, num_classes=1000, init_weights=True):
+    def __init__(self, features, num_classes=1000, init_weights=False):
         super(VGG, self).__init__()
         self.features = features
         self.classifier = nn.Sequential(
@@ -67,6 +67,6 @@ def make_layers(batch_norm=False):
 
 def vgg19():
     model = VGG(make_layers())
-    state_dict = torch.load('ignore/vgg19-dcbb9e9d.pth')
+    state_dict = torch.load('https://download.pytorch.org/models/vgg19-dcbb9e9d.pth')
     model.load_state_dict(state_dict)
     return model
