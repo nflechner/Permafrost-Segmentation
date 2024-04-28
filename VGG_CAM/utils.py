@@ -54,7 +54,7 @@ def accuracy(input:Tensor, targs:Tensor):
 #https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
 def imshow_transform(image_in, title=None):
     """Imshow for Tensor."""
-    img = np.rollaxis(image_in.squeeze().cpu().detach().numpy(),0,3)
+    img = np.rollaxis(image_in.squeeze().cpu().detach().long().numpy(),0,3)
     mean = np.array([0.485, 0.456, 0.406])
     std = np.array([0.229, 0.224, 0.225])
     img = std * img + mean
