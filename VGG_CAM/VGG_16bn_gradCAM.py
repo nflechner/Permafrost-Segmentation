@@ -15,7 +15,7 @@ class VGG(nn.Module):
 
     def __init__(self, features, num_classes = 1000, init_weights=False): # INITWEIGHTS SHOULD BE TRUE 
         super(VGG, self).__init__()
-        self.features = features[:43]
+        self.features = features
         self.classifier = nn.Sequential(
             nn.Linear(512 * 7 * 7, 4096),
             nn.ReLU(True),
@@ -91,6 +91,7 @@ def vgg16bn():
     model.features[-7] = nn.Conv2d(512,512,3, padding=1)
     model.features[-4] = nn.Conv2d(512,1,3, padding=1)
     model.features[-3] = nn.BatchNorm2d(1,eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    model.features = model.features[:43]
 
     model.classifier = nn.Sequential(
         nn.Linear(1 * 7 * 7, 49),
