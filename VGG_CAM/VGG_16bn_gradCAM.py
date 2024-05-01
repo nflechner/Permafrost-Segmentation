@@ -27,7 +27,7 @@ class VGG(nn.Module):
         )
         self.max_pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
         self.gradients = None
-        self.features_conv = self.vgg.features[:40]
+        # self.features_conv = self.features[:40]
 
         if init_weights:
             self._initialize_weights()
@@ -50,7 +50,7 @@ class VGG(nn.Module):
     # method for the activation exctraction
     def get_activations(self, x):
         return self.features_conv(x)
-
+    
     def _initialize_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
