@@ -45,11 +45,16 @@ class SaveFeatures():
     def remove(self): self.hook.remove()
 
 # https://github.com/tony-mtz/CAM/blob/master/network/utils.py
-def accuracy(input:Tensor, targs:Tensor):
-    n = targs.shape[0]
-    input = input.argmax(dim=-1).view(n,-1)
-    targs = targs.view(n,-1)
-    return (input==targs).float().mean().cpu().detach().numpy()
+# def accuracy(input:Tensor, targs:Tensor):
+#     n = targs.shape[0]
+#     input = input.argmax(dim=-1).view(n,-1)
+#     targs = targs.view(n,-1)
+#     return (input==targs).float().mean().cpu().detach().numpy()
+
+def accuracy(outputs:Tensor, labels:Tensor):
+    conv_outputs = torch.where(outputs.squeeze() > 0.5, 1.0, 0.0)
+    return (conv_outputs==labels).float().mean().detach().cpu().numpy()
+
 
 #https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
 def imshow_transform(image_in, title=None):
