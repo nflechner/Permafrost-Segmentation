@@ -27,6 +27,7 @@ class VGG(nn.Module):
         )
         self.max_pool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0, dilation=1, ceil_mode=False)
         self.gradients = None
+        self.features_conv = self.vgg.features[:40]
 
         if init_weights:
             self._initialize_weights()
@@ -82,7 +83,7 @@ def make_layers(batch_norm=True):
     return nn.Sequential(*layers)
 
 
-def vgg16bn():
+def vgg16bn_fc():
     model = VGG(make_layers())
     state_dict = models.VGG16_BN_Weights.DEFAULT.get_state_dict(progress=True)
     model.load_state_dict(state_dict)
