@@ -35,6 +35,61 @@ def get_RGB_match(DEM_name, original_tif_dir):
             newest_match = file
     return newest_match
 
+def tif_from_ruta(ruta_geometry):
+    minx_ruta = ruta_geometry.bounds[0]
+    miny_ruta = ruta_geometry.bounds[1]
+
+    miny = str(miny_ruta)[0:3]
+    minx = str(minx_ruta)[0:2]
+
+    if 0 <= int(str(miny_ruta)[3:5]) < 25:
+        km_siffran_y = 00
+    elif 25 <= int(str(miny_ruta)[3:5]) < 50:
+        km_siffran_y = 25
+    elif 50 <= int(str(miny_ruta)[3:5]) < 75:
+        km_siffran_y = 50
+    elif 75 <= int(str(miny_ruta)[3:5]) < 100:
+        km_siffran_y = 75
+
+    if 0 <= int(str(minx_ruta)[3:5]) < 25:
+        km_siffran_x = 00
+    elif 25 <= int(str(minx_ruta)[3:5]) < 50:
+        km_siffran_x = 25
+    elif 50 <= int(str(minx_ruta)[3:5]) < 75:
+        km_siffran_x = 50
+    elif 75 <= int(str(minx_ruta)[3:5]) < 100:
+        km_siffran_x = 75
+
+    year = 2018 # WHICH YEAR SHOULD IT BE??
+
+    filename = f"{miny}_{minx}_{km_siffran_y}{km_siffran_x}_{year}.tif"
+    return filename
+
+
+def filter_imgs(all_rutor_path, original_tif_dir):
+    all_rutor = gpd.read_file(all_rutor_path)
+    all_rutor['in_tif'] = all_rutor['geometry'].map(tif_from_ruta)
+    uniques = all_rutor.in_tif.unique()
+
+    dir_files = os.listdir(original_tif_dir)
+    only_tifs = [filename for filename in dir_files if filename[-4:] == ".tif"]
+
+    only_tifs_noyear = [filename[:-8] for filename in only_tifs]
+    uniques_noyear = [filename[:-8] for filename in list(uniques)]
+
+    # check that all uniques are in only tifs
+    if not (set(list(uniques_noyear)).issubset(set(only_tifs_noyear))):
+        # logger.WARN(f"at least one tif name generated from all_rutor was not found in the directory: {original_tif_dir}")
+        print(f"at least one tif name generated from all_rutor was not found in the directory")
+        items_not_in_dir = [item for item in list(uniques) if item not in only_tifs]
+        print(f"items not in directory are: \n {items_not_in_dir}")
+
+    intersection = list(set(uniques_noyear) & set(only_tifs_noyear))
+
+    tifs_to_use = [filename for filename in only_tifs if filename[:-8] in intersection]
+
+    return tifs_to_use
+
 
 ##############
 ## cropping ##

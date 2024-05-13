@@ -15,7 +15,7 @@ import json
 import logging
 
 # functions 
-from functions import get_RGB_match, Crop_tif_varsize
+from functions import get_RGB_match, Crop_tif_varsize, filter_imgs
 
 ##################
 ## setup logger ##
@@ -59,8 +59,8 @@ logger.info('Configurations were loaded')
 
 logger.info('Starting to sample relevant TIF paths...')
 
-hillshade_filenames = os.listdir(hillshade_tif_dir)
-"""NEED TO MAKE SURE THIS ONLY CONTAINS PALSA HILLSHADE FILES"""
+# Filter hillshade data so only those containing palsa remain
+hillshade_filenames = filter_imgs(palsa_shapefile_path, hillshade_tif_dir)
 
 logger.info(f'{len(hillshade_filenames)} TIF paths have been loaded!')
 logger.info('Starting to generate training samples from TIFs..')
@@ -74,14 +74,13 @@ for idx, img_name in enumerate(hillshade_filenames):
 
 # ___________________DONE TIL HERE_____________________________________
 
-
         img_name_code = img_name.split('.')[0]
         img_path = os.path.join(original_tif_dir, img_name)
 
         cropping = Crop_tif_varsize(img_name_code, img_path, palsa_shapefile_path, save_crops_dir, dims, logger)
         new_labels = cropping.forward()
         labels = labels | new_labels
-        logger.info(f'Generated training samples from image {idx+1}/{len(palsa_tifs)}')
+        logger.info(f'Generated training samples from image {idx+1}/{len(hillshade_filenames)}')
 
 label_df = pd.DataFrame.from_dict(labels, orient='index', columns = ['palsa_percentage'])
 label_df.to_csv(os.path.join(save_crops_dir, "palsa_labels.csv"))
