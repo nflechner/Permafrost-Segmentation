@@ -15,40 +15,30 @@ import json
 from shapely.geometry import box, Polygon
 import logging
 
-##########
-## code ##
-##########
+##############
+## dataprep ##
+##############
 
-def tif_from_ruta(ruta_geometry):
-    minx_ruta = ruta_geometry.bounds[0]
-    miny_ruta = ruta_geometry.bounds[1]
+def get_RGB_match(DEM_name, original_tif_dir):
 
-    miny = str(miny_ruta)[0:3]
-    minx = str(minx_ruta)[0:2]
-    km_siffran_y = 0 if int(str(miny_ruta)[3]) < 5 else 5
-    km_siffran_x = 0 if int(str(minx_ruta)[2]) < 5 else 5
-    year = 2018
+    # Find the base name matching the DEM file
+    DEM_name = DEM_name[:-9] # remove _year.tif
+    north_kms = 0 if int(DEM_name[7:9]) < 50 else 5
+    east_kms = 0 if int(DEM_name[9:11]) < 50 else 5
+    RGB_name = f"{DEM_name[:7]}{north_kms}{east_kms}"
 
-    filename = f"{miny}_{minx}_{km_siffran_y}{km_siffran_x}_{year}.tif"
-    return filename
+    all_RGB_files = os.listdir(original_tif_dir)
+
+    newest_match = f"{RGB_name}_0000"
+    for file in all_RGB_files: 
+        if file[:9] == RGB_name and int(file[10:14]) > int(newest_match[10:14]):
+            newest_match = file
+    return newest_match
 
 
-def filter_imgs(all_rutor_path, original_tif_dir):
-    all_rutor = gpd.read_file(all_rutor_path)
-    all_rutor['in_tif'] = all_rutor['geometry'].map(tif_from_ruta)
-    uniques = all_rutor.in_tif.unique()
-
-    dir_files = os.listdir(original_tif_dir)
-    only_tifs = [filename for filename in dir_files if filename[-4:] == ".tif"]
-
-    # check that all uniques are in only tifs
-    if not (set(list(uniques)).issubset(set(only_tifs))):
-        # logger.WARN(f"at least one tif name generated from all_rutor was not found in the directory: {original_tif_dir}")
-        print(f"at least one tif name generated from all_rutor was not found in the directory: {original_tif_dir}")
-
-    intersection = list(set(uniques) & set(only_tifs))
-
-    return intersection
+##############
+## cropping ##
+##############
 
 class Crop_tif_varsize():
     """
@@ -124,8 +114,8 @@ class Crop_tif_varsize():
         square_dims = dims # 100x100 meters
 
         # Calculate the number of segments in each dimension (tif width // desired width in pixels!)
-        segments_x = 5000 // square_dims
-        segments_y = 5000 // square_dims
+        segments_x = 2500 // square_dims # for depth data its 2500
+        segments_y = 2500 // square_dims
 
         # Create an empty list to store the polygons
         polygons = []
