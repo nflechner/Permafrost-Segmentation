@@ -1,8 +1,8 @@
 {
     "paths": {
-        "original_tif_dir": "/Users/nadja/Documents/UU/Thesis/data/Raster/OrthoRGB/",
-        "palsa_shapefile_path": "/Users/nadja/Documents/UU/Thesis/data/Vector/palsaShape/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp",
-        "save_crops_dir": "/Users/nadja/Documents/UU/Thesis/generated_tifs/100x100/"
+        "original_tif_dir": "/Users/nadja/Documents/UU/Thesis/Data/hillshade/",
+        "palsa_shapefile_path": "/Users/nadja/Documents/UU/Thesis/Data/palsaShape/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp",
+        "save_crops_dir": "/Users/nadja/Documents/UU/Thesis/Data/cropped_hillshade/"
     },
     "image_info": {
         "meters_per_axis": "100"
