@@ -15,14 +15,9 @@ from VGG_model import vgg19
 
 #########################################################################
 
-
-# image_dir = "/home/nadjaflechner/Palsa_data/dataset_100m/"
-# labels_file = "/home/nadjaflechner/Palsa_data/binary_palsa_labels_100m.csv"
-
 RGB_dir = None # TO BE FILLED
 hs_dir = None # TO BE FILLED
-
-labels_file = "/Users/nadja/Documents/UU/Thesis/Data/100m_palsa_labels.csv"
+labels_file = None # TO BE FILLED
 
 # Load the labels from the CSV file
 labels_df = pd.read_csv(labels_file, index_col=0).head(100)
