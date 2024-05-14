@@ -19,7 +19,9 @@ from VGG_model import vgg19
 # image_dir = "/home/nadjaflechner/Palsa_data/dataset_100m/"
 # labels_file = "/home/nadjaflechner/Palsa_data/binary_palsa_labels_100m.csv"
 
-image_dir = "/Users/nadja/Documents/UU/Thesis/Data/100m"
+RGB_dir = None # TO BE FILLED
+hs_dir = None # TO BE FILLED
+
 labels_file = "/Users/nadja/Documents/UU/Thesis/Data/100m_palsa_labels.csv"
 
 # Load the labels from the CSV file
@@ -30,11 +32,10 @@ train_df = labels_df.head(80)
 val_df = labels_df.drop(train_df.index)
 
 # Create the datasets and data loaders
-train_dataset = ImageDataset(image_dir, train_df )
-val_dataset = ImageDataset(image_dir, val_df )
+train_dataset = ImageDataset(hs_dir, RGB_dir, train_df)
+val_dataset = ImageDataset(hs_dir, RGB_dir, val_df)
 train_loader = DataLoader(train_dataset, batch_size=2, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=2, shuffle=False)
-
 
 
 #########################################################################

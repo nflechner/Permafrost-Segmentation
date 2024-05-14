@@ -28,23 +28,23 @@ class ImageDataset(Dataset):
 
         with rasterio.open(RGB_img_path) as RGB_src:
             # Read the image data
-            image_data = RGB_src.read()
+            RGB_img = RGB_src.read()
 
         with rasterio.open(hs_img_path) as hs_src:
             # Read the image data
-            image_data = hs_src.read()
+            hs_img = hs_src.read()
 
         # convert and upsample hs image
         hs_image_array = np.array(hs_img.read())
         hs_image_tensor = torch.from_numpy(hs_image_array)
-        hs_image_tensor = image_tensor.float()
+        hs_image_tensor = hs_image_tensor.float()
         bilinear = nn.Upsample(size=200, mode='bilinear')
-        hs_upsampled_tensor = bilinear(image_tensor.unsqueeze(0)).squeeze(0) 
+        hs_upsampled_tensor = bilinear(hs_image_tensor.unsqueeze(0)).squeeze(0) 
 
         # converting RGB to tensor
         RGB_image_array = np.array(RGB_img.read())
         RGB_image_tensor = torch.from_numpy(RGB_image_array)
-        RGB_image_tensor = image_tensor.float()
+        RGB_image_tensor = RGB_image_tensor.float()
 
         combined_tensor = torch.concatenate((RGB_image_tensor, hs_upsampled_tensor))
 
