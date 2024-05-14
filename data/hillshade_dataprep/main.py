@@ -76,7 +76,9 @@ for idx, hs_img_name in enumerate(hillshade_filenames):
 
 # ___________________DONE TIL HERE_____________________________________
 
-    cropping = Crop_tif_varsize(hs_img_name_code, hs_img_path, palsa_shapefile_path, save_crops_dir, dims, logger)
+    cropping = Crop_tif_varsize(RGB_img_name_code, RGB_img_path, 
+                                hs_img_name_code, hs_img_path, palsa_shapefile_path, 
+                                save_crops_dir, dims, logger)
     new_labels = cropping.forward()
     labels = labels | new_labels
     logger.info(f'Generated training samples from image {idx+1}/{len(hillshade_filenames)}')

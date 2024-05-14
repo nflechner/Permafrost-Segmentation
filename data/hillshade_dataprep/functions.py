@@ -102,33 +102,36 @@ class Crop_tif_varsize():
     Returns: directory of one cropped tif per 100x100 ruta.
     """
 
-    def __init__(self, img_name_code, img_path, rutor_path, destination_path, dims, logger):
+    def __init__(self, RGB_name_code, RGB_img_path, hs_name_code, hs_img_path,
+                 rutor_path, destination_path, dims, logger):
 
-        self.img_name_code = img_name_code
+        self.RGB_name_code = RGB_name_code
+        self.hs_name_code = hs_name_code
         self.dimensions = dims
         self.destination_path = destination_path
         self.logger = logger
-        self.img_path = img_path
+        self.RGB_img_path = RGB_img_path
+        self.hs_img_path = hs_img_path
         self.rutor_path = rutor_path
-
-        self.img = rasterio.open(img_path)
+        self.RGB_img = rasterio.open(RGB_img_path)
+        self.hs_img = rasterio.open(hs_img_path)
         self.filtered_rutor = self.filter_rutor()
 
     def forward(self):
 
         # generate all possible polygons in the image of dim x dim 
-        generated_polygons_all = self.generate_geoseries(self.img.bounds, self.img.crs, self.dimensions) 
+        generated_polygons_all = self.generate_geoseries(self.hs_img.bounds, self.hs_img.crs, self.dimensions) 
         generated_polygons_palsa = self.palsa_polygons(generated_polygons_all)
         positive_labels = self.crop_palsa_imgs(generated_polygons_palsa)
         negative_labels = self.crop_negatives(generated_polygons_all, generated_polygons_palsa)
         all_labels = positive_labels | negative_labels
-        self.img.close()
+        self.hs_img.close()
         return all_labels
 
     def filter_rutor(self):
         # Find which 100x100 squares overlap with the current TIF
         rutor = gpd.read_file(self.rutor_path)
-        image_polygon = box(*self.img.bounds)
+        image_polygon = box(*self.hs_img.bounds)
         cropped_polygons = rutor[rutor.geometry.apply(lambda x: x.intersection(image_polygon).equals(x))]
 
         return cropped_polygons
@@ -136,7 +139,7 @@ class Crop_tif_varsize():
     def new_palsa_percentage(self, big_ruta, joined_df):
         contained_rutor = joined_df.loc[joined_df['name'] == big_ruta]
         total_pals_percentage = contained_rutor['PALS'].sum()
-        percentage_factor = self.dimensions **2 / 10000 
+        percentage_factor = self.dimensions **2 / 10000 # TODO check this part. was 100x100 = 10000 so should now be the same still. 
         palsa_percentage = total_pals_percentage / percentage_factor
         return palsa_percentage
     
@@ -163,7 +166,7 @@ class Crop_tif_varsize():
     def generate_geoseries(self, bounds, crs, dims):
 
         """
-        Generates all dim x dim polygons present in a TIF.
+        Generates all dim x dim polygons present in the hillshade TIF.
         """
 
         # height and width of new squares 
@@ -194,6 +197,22 @@ class Crop_tif_varsize():
         # Create a GeoSeries from the list of polygons
         return gpd.GeoSeries(polygons, crs=crs)
 
+    def make_crop(self, img, polygon, output_filename):
+        # Crop the TIF file using the polygon
+        cropped_data, cropped_transform = mask(self.hs_img, [polygon], crop=True)
+
+        # Update the metadata for the cropped TIF
+        cropped_meta = img.meta.copy()
+        cropped_meta.update({"driver": "GTiff",
+                            "height": cropped_data.shape[1],
+                            "width": cropped_data.shape[2],
+                            "transform": cropped_transform})
+
+        # Save the cropped TIF file with a unique name
+        output_path = os.path.join(self.destination_path, output_filename) 
+        with rasterio.open(output_path, "w", **cropped_meta) as dest:
+            dest.write(cropped_data)
+
     def crop_palsa_imgs(self, palsa_rutor):
 
         """
@@ -203,23 +222,12 @@ class Crop_tif_varsize():
         cropped_tifs_percentages = {}
         # Iterate over each polygon in the GeoDataFrame
         for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry):
-            # Crop the TIF file using the polygon
-            cropped_data, cropped_transform = mask(self.img, [polygon], crop=True)
-
-            # Update the metadata for the cropped TIF
-            cropped_meta = self.img.meta.copy()
-            cropped_meta.update({"driver": "GTiff",
-                                "height": cropped_data.shape[1],
-                                "width": cropped_data.shape[2],
-                                "transform": cropped_transform})
-
-            # Save the cropped TIF file with a unique name
-            output_path = os.path.join(self.destination_path, f"{self.img_name_code}_crop_hs_{idx}.tif") # CHANGE THIS NAMING? 
-            with rasterio.open(output_path, "w", **cropped_meta) as dest:
-                dest.write(cropped_data)
-
+            RGB_filename = f"{self.hs_name_code}_crop_{idx}.tif"
+            hs_filename = f"{self.hs_name_code}_crop_hs_{idx}.tif"
+            self.make_crop(self.hs_img, polygon, RGB_filename)
+            self.make_crop(self.RGB_img, polygon, hs_filename)
             # Write the corresponding percentage to a dictionary as label 
-            cropped_tifs_percentages[f"{self.img_name_code}_crop_{idx}"] = percentage
+            cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}"] = percentage
 
         return cropped_tifs_percentages
 
@@ -252,22 +260,12 @@ class Crop_tif_varsize():
         # Iterate over each polygon in the GeoDataFrame
         for idx, polygon in enumerate(negative_samples.geometry):
             # Crop the TIF file using the polygon
-            cropped_data, cropped_transform = mask(self.img, [polygon], crop=True)
-
-            # Update the metadata for the cropped TIF
-            cropped_meta = self.img.meta.copy()
-            cropped_meta.update({"driver": "GTiff",
-                                "height": cropped_data.shape[1],
-                                "width": cropped_data.shape[2],
-                                "transform": cropped_transform})
-
-            # Save the cropped TIF file with a unique name
-            output_path = os.path.join(self.destination_path, f"{self.img_name_code}_neg_crop_hs_{idx}.tif") # CHANGE THIS NAMING? 
-            with rasterio.open(output_path, "w", **cropped_meta) as dest:
-                dest.write(cropped_data)
-
+            RGB_filename = f"{self.hs_name_code}_crop_{idx}.tif"
+            hs_filename = f"{self.hs_name_code}_crop_hs_{idx}.tif"
+            self.make_crop(self.hs_img, polygon, RGB_filename)
+            self.make_crop(self.RGB_img, polygon, hs_filename)
             # Write the corresponding percentage to a dictionary as label 
-            cropped_tifs_percentages[f"{self.img_name_code}_neg_crop_{idx}"] = 0
+            cropped_tifs_percentages[f"{self.hs_name_code}_neg_crop_{idx}"] = 0
 
         return cropped_tifs_percentages
                 
