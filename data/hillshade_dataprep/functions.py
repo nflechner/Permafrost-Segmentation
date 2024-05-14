@@ -126,6 +126,7 @@ class Crop_tif_varsize():
         negative_labels = self.crop_negatives(generated_polygons_all, generated_polygons_palsa)
         all_labels = positive_labels | negative_labels
         self.hs_img.close()
+        self.RGB_img.close()
         return all_labels
 
     def filter_rutor(self):
@@ -199,7 +200,7 @@ class Crop_tif_varsize():
 
     def make_crop(self, img, polygon, output_filename):
         # Crop the TIF file using the polygon
-        cropped_data, cropped_transform = mask(self.hs_img, [polygon], crop=True)
+        cropped_data, cropped_transform = mask(img, [polygon], crop=True)
 
         # Update the metadata for the cropped TIF
         cropped_meta = img.meta.copy()
@@ -224,7 +225,9 @@ class Crop_tif_varsize():
         for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry):
             RGB_filename = f"{self.hs_name_code}_crop_{idx}.tif"
             hs_filename = f"{self.hs_name_code}_crop_hs_{idx}.tif"
-            self.make_crop(self.hs_img, polygon, RGB_filename)
+
+            # crop hillshade and RGB according to same polygons
+            self.make_crop(self.hs_img, polygon, RGB_filename) 
             self.make_crop(self.RGB_img, polygon, hs_filename)
             # Write the corresponding percentage to a dictionary as label 
             cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}"] = percentage
@@ -262,6 +265,8 @@ class Crop_tif_varsize():
             # Crop the TIF file using the polygon
             RGB_filename = f"{self.hs_name_code}_crop_{idx}.tif"
             hs_filename = f"{self.hs_name_code}_crop_hs_{idx}.tif"
+
+            # crop hillshade and RGB according to same polygons
             self.make_crop(self.hs_img, polygon, RGB_filename)
             self.make_crop(self.RGB_img, polygon, hs_filename)
             # Write the corresponding percentage to a dictionary as label 
