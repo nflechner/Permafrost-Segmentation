@@ -224,7 +224,7 @@ class Crop_tif_varsize():
         # Iterate over each polygon in the GeoDataFrame
         for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry):
             RGB_filename = f"{self.hs_name_code}_crop_{idx}.tif"
-            hs_filename = f"{self.hs_name_code}_crop_hs_{idx}.tif"
+            hs_filename = f"{self.hs_name_code}_crop_{idx}_hs.tif"
 
             # crop hillshade and RGB according to same polygons
             self.make_crop(self.hs_img, polygon, RGB_filename) 
@@ -263,8 +263,8 @@ class Crop_tif_varsize():
         # Iterate over each polygon in the GeoDataFrame
         for idx, polygon in enumerate(negative_samples.geometry):
             # Crop the TIF file using the polygon
-            RGB_filename = f"{self.hs_name_code}_crop_{idx}.tif"
-            hs_filename = f"{self.hs_name_code}_crop_hs_{idx}.tif"
+            RGB_filename = f"{self.hs_name_code}_negcrop_{idx}.tif"
+            hs_filename = f"{self.hs_name_code}_negcrop_{idx}_hs.tif"
 
             # crop hillshade and RGB according to same polygons
             self.make_crop(self.hs_img, polygon, RGB_filename)
