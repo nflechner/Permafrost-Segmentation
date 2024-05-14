@@ -43,22 +43,22 @@ def tif_from_ruta(ruta_geometry):
     minx = str(minx_ruta)[0:2]
 
     if 0 <= int(str(miny_ruta)[3:5]) < 25:
-        km_siffran_y = 00
+        km_siffran_y = '00'
     elif 25 <= int(str(miny_ruta)[3:5]) < 50:
-        km_siffran_y = 25
+        km_siffran_y = '25'
     elif 50 <= int(str(miny_ruta)[3:5]) < 75:
-        km_siffran_y = 50
+        km_siffran_y = '50'
     elif 75 <= int(str(miny_ruta)[3:5]) < 100:
-        km_siffran_y = 75
+        km_siffran_y = '75'
 
     if 0 <= int(str(minx_ruta)[3:5]) < 25:
-        km_siffran_x = 00
+        km_siffran_x = '00'
     elif 25 <= int(str(minx_ruta)[3:5]) < 50:
-        km_siffran_x = 25
+        km_siffran_x = '25'
     elif 50 <= int(str(minx_ruta)[3:5]) < 75:
-        km_siffran_x = 50
+        km_siffran_x = '50'
     elif 75 <= int(str(minx_ruta)[3:5]) < 100:
-        km_siffran_x = 75
+        km_siffran_x = '75'
 
     year = 2018 # WHICH YEAR SHOULD IT BE??
 
@@ -74,6 +74,7 @@ def filter_imgs(all_rutor_path, original_tif_dir):
     dir_files = os.listdir(original_tif_dir)
     only_tifs = [filename for filename in dir_files if filename[-4:] == ".tif"]
 
+    # compare such only the part without the year. 
     only_tifs_noyear = [filename[:-8] for filename in only_tifs]
     uniques_noyear = [filename[:-8] for filename in list(uniques)]
 

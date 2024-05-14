@@ -57,30 +57,29 @@ logger.info('Configurations were loaded')
 ## code ##
 ##########
 
-logger.info('Starting to sample relevant TIF paths...')
-
 # Filter hillshade data so only those containing palsa remain
-hillshade_filenames = filter_imgs(palsa_shapefile_path, hillshade_tif_dir)
-
+logger.info('Starting to sample relevant TIF paths...')
+hillshade_filenames = filter_imgs(palsa_shapefile_path, hillshade_tif_dir) # TODO: could already filter 'only newest' here.. 
 logger.info(f'{len(hillshade_filenames)} TIF paths have been loaded!')
+
+# Loop over hillshade images to generate the crops. 
 logger.info('Starting to generate training samples from TIFs..')
-
 labels = {}
+for idx, hs_img_name in enumerate(hillshade_filenames):
+    # grab corresponding RGB image (matching the hillshade)
+    RGB_tif_name = get_RGB_match(hs_img_name, original_tif_dir) 
+    RGB_img_name_code = RGB_tif_name.split('.')[0]
+    RGB_img_path = os.path.join(original_tif_dir, RGB_tif_name)
 
-# load palsa shape path
-for idx, img_name in enumerate(hillshade_filenames):
-    if str(img_name)[-4:] == ".tif":
-        RGB_tif = get_RGB_match(img_name, original_tif_dir)
+    hs_img_name_code = hs_img_name.split('.')[0]
+    hs_img_path = os.path.join(hillshade_tif_dir, hs_img_name)
 
 # ___________________DONE TIL HERE_____________________________________
 
-        img_name_code = img_name.split('.')[0]
-        img_path = os.path.join(original_tif_dir, img_name)
-
-        cropping = Crop_tif_varsize(img_name_code, img_path, palsa_shapefile_path, save_crops_dir, dims, logger)
-        new_labels = cropping.forward()
-        labels = labels | new_labels
-        logger.info(f'Generated training samples from image {idx+1}/{len(hillshade_filenames)}')
+    cropping = Crop_tif_varsize(hs_img_name_code, hs_img_path, palsa_shapefile_path, save_crops_dir, dims, logger)
+    new_labels = cropping.forward()
+    labels = labels | new_labels
+    logger.info(f'Generated training samples from image {idx+1}/{len(hillshade_filenames)}')
 
 label_df = pd.DataFrame.from_dict(labels, orient='index', columns = ['palsa_percentage'])
 label_df.to_csv(os.path.join(save_crops_dir, "palsa_labels.csv"))
