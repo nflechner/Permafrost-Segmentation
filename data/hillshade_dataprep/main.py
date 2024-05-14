@@ -74,8 +74,6 @@ for idx, hs_img_name in enumerate(hillshade_filenames):
     hs_img_name_code = hs_img_name.split('.')[0]
     hs_img_path = os.path.join(hillshade_tif_dir, hs_img_name)
 
-# ___________________DONE TIL HERE_____________________________________
-
     cropping = Crop_tif_varsize(RGB_img_name_code, RGB_img_path, 
                                 hs_img_name_code, hs_img_path, palsa_shapefile_path, 
                                 save_crops_dir, dims, logger)
