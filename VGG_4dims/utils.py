@@ -49,6 +49,7 @@ class ImageDataset(Dataset):
         combined_tensor = torch.concatenate((RGB_image_tensor, hs_upsampled_tensor))
 
         label = self.labels_df.iloc[idx, 0]
+        label = 1 if label > 0 else 0
 
         return combined_tensor, label
 
