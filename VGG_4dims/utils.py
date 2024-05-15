@@ -35,14 +35,14 @@ class ImageDataset(Dataset):
             hs_img = hs_src.read()
 
         # convert and upsample hs image
-        hs_image_array = np.array(hs_img.read())
+        hs_image_array = np.array(hs_img)
         hs_image_tensor = torch.from_numpy(hs_image_array)
         hs_image_tensor = hs_image_tensor.float()
         bilinear = nn.Upsample(size=200, mode='bilinear')
         hs_upsampled_tensor = bilinear(hs_image_tensor.unsqueeze(0)).squeeze(0) 
 
         # converting RGB to tensor
-        RGB_image_array = np.array(RGB_img.read())
+        RGB_image_array = np.array(RGB_img)
         RGB_image_tensor = torch.from_numpy(RGB_image_array)
         RGB_image_tensor = RGB_image_tensor.float()
 
