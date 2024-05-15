@@ -270,7 +270,7 @@ class Crop_tif_varsize():
             self.make_crop(self.hs_img, polygon, hs_filename)
             self.make_crop(self.RGB_img, polygon, RGB_filename)
             # Write the corresponding percentage to a dictionary as label 
-            cropped_tifs_percentages[f"{self.hs_name_code}_neg_crop_{idx}"] = 0
+            cropped_tifs_percentages[f"{self.hs_name_code}_negcrop_{idx}"] = 0
 
         return cropped_tifs_percentages
                 
