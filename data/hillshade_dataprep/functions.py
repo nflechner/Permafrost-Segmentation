@@ -31,7 +31,7 @@ def get_RGB_match(DEM_name, original_tif_dir):
 
     newest_match = f"{RGB_name}_0000"
     for file in all_RGB_files: 
-        if file[:9] == RGB_name and int(file[10:14]) > int(newest_match[10:14]):
+        if str(file[:9]) == str(RGB_name) and int(file[10:14]) > int(newest_match[10:14]):
             newest_match = file
     return newest_match
 
