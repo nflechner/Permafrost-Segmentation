@@ -70,6 +70,7 @@ def make_layers(batch_norm=True):
 
 def vgg16bn():
     model = VGG(make_layers())
-    state_dict = models.VGG16_BN_Weights.DEFAULT.get_state_dict(progress=True)
-    model.load_state_dict(state_dict)
+    ## DON'T LOAD WEIGHTS:
+    # state_dict = models.VGG16_BN_Weights.DEFAULT.get_state_dict(progress=True)
+    # model.load_state_dict(state_dict)
     return model
