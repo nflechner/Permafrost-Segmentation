@@ -227,8 +227,8 @@ class Crop_tif_varsize():
             hs_filename = f"{self.hs_name_code}_crop_{idx}_hs.tif"
 
             # crop hillshade and RGB according to same polygons
-            self.make_crop(self.hs_img, polygon, RGB_filename) 
-            self.make_crop(self.RGB_img, polygon, hs_filename)
+            self.make_crop(self.hs_img, polygon, hs_filename) 
+            self.make_crop(self.RGB_img, polygon, RGB_filename)
             # Write the corresponding percentage to a dictionary as label 
             cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}"] = percentage
 
@@ -267,8 +267,8 @@ class Crop_tif_varsize():
             hs_filename = f"{self.hs_name_code}_negcrop_{idx}_hs.tif"
 
             # crop hillshade and RGB according to same polygons
-            self.make_crop(self.hs_img, polygon, RGB_filename)
-            self.make_crop(self.RGB_img, polygon, hs_filename)
+            self.make_crop(self.hs_img, polygon, hs_filename)
+            self.make_crop(self.RGB_img, polygon, RGB_filename)
             # Write the corresponding percentage to a dictionary as label 
             cropped_tifs_percentages[f"{self.hs_name_code}_neg_crop_{idx}"] = 0
 
