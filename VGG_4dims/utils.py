@@ -69,8 +69,10 @@ class SaveFeatures():
 #     return (input==targs).float().mean().cpu().detach().numpy()
 
 def accuracy(outputs:Tensor, labels:Tensor):
-    conv_outputs = torch.where(outputs.squeeze() > 0.5, 1.0, 0.0)
-    return (conv_outputs==labels).float().mean().detach().cpu().numpy()
+    # conv_outputs = torch.where(outputs.squeeze() > 0.5, 1.0, 0.0)
+    softmax = nn.Softmax()
+    outputs = torch.argmax(softmax(outputs), dim = 1)
+    return (outputs==labels).float().mean().detach().cpu().numpy()
 
 
 #https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
