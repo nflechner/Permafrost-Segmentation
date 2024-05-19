@@ -67,19 +67,23 @@ logger.info('Starting to generate training samples from TIFs..')
 labels = {}
 for idx, hs_img_name in enumerate(hillshade_filenames):
     # grab corresponding RGB image (matching the hillshade)
-    RGB_tif_name = get_RGB_match(hs_img_name, original_tif_dir) 
-    RGB_img_name_code = RGB_tif_name.split('.')[0]
-    RGB_img_path = os.path.join(original_tif_dir, RGB_tif_name)
+    try:
+        RGB_tif_name = get_RGB_match(hs_img_name, original_tif_dir) 
+        RGB_img_name_code = RGB_tif_name.split('.')[0]
+        RGB_img_path = os.path.join(original_tif_dir, RGB_tif_name)
 
-    hs_img_name_code = hs_img_name.split('.')[0]
-    hs_img_path = os.path.join(hillshade_tif_dir, hs_img_name)
+        hs_img_name_code = hs_img_name.split('.')[0]
+        hs_img_path = os.path.join(hillshade_tif_dir, hs_img_name)
 
-    cropping = Crop_tif_varsize(RGB_img_name_code, RGB_img_path, 
-                                hs_img_name_code, hs_img_path, palsa_shapefile_path, 
-                                save_crops_dir, dims, logger)
-    new_labels = cropping.forward()
-    labels = labels | new_labels
-    logger.info(f'Generated training samples from image {idx+1}/{len(hillshade_filenames)}')
+        cropping = Crop_tif_varsize(RGB_img_name_code, RGB_img_path, 
+                                    hs_img_name_code, hs_img_path, palsa_shapefile_path, 
+                                    save_crops_dir, dims, logger)
+        new_labels = cropping.forward()
+        labels = labels | new_labels
+        logger.info(f'Generated training samples from image {idx+1}/{len(hillshade_filenames)}')
+    except: 
+        logger.info('RGB match not found')
+
 
 label_df = pd.DataFrame.from_dict(labels, orient='index', columns = ['palsa_percentage'])
 label_df.to_csv(os.path.join(save_crops_dir, "palsa_labels.csv"))
