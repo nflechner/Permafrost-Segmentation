@@ -65,6 +65,7 @@ logger.info(f'{len(hillshade_filenames)} TIF paths have been loaded!')
 # Loop over hillshade images to generate the crops. 
 logger.info('Starting to generate training samples from TIFs..')
 labels = {}
+not_found = []
 for idx, hs_img_name in enumerate(hillshade_filenames):
     # grab corresponding RGB image (matching the hillshade)
     try:
@@ -82,8 +83,9 @@ for idx, hs_img_name in enumerate(hillshade_filenames):
         labels = labels | new_labels
         logger.info(f'Generated training samples from image {idx+1}/{len(hillshade_filenames)}')
     except: 
-        logger.info('RGB match not found')
+        logger.info(f'RGB match for {hs_img_name} not found')
+        not_found.append(hs_img_name)
 
-
+print(f'The following images had no rgb match: \n {not_found}')
 label_df = pd.DataFrame.from_dict(labels, orient='index', columns = ['palsa_percentage'])
 label_df.to_csv(os.path.join(save_crops_dir, "palsa_labels.csv"))
