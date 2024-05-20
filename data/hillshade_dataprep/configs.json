@@ -2,10 +2,10 @@
     "paths": {
         "original_tif_dir": "/home/nadjaflechner/Palsa_data/filtered_tifs/",
         "hillshade_tif_dir": "/home/nadjaflechner/Palsa_data/hillshade/",
-        "palsa_shapefile_path": "/home/nadjaflechner/palsa_seg/Palsa_rutor/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp",
-        "save_crops_dir": "/home/nadjaflechner/Palsa_data/cropped_hillshade/"
+        "palsa_shapefile_path": "/home/nadjaflechner/Palsa_data/Palsa_rutor/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp",
+        "save_crops_dir": "/home/nadjaflechner/Palsa_data/cropped_hillshade_200m/"
     },
     "image_info": {
-        "meters_per_axis": "100"
+        "meters_per_axis": "200"
     }
 }
