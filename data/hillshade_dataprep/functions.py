@@ -82,7 +82,7 @@ def filter_imgs(all_rutor_path, original_tif_dir):
     if not (set(list(uniques_noyear)).issubset(set(only_tifs_noyear))):
         # logger.WARN(f"at least one tif name generated from all_rutor was not found in the directory: {original_tif_dir}")
         print(f"at least one tif name generated from all_rutor was not found in the directory")
-        items_not_in_dir = [item for item in list(uniques) if item not in only_tifs]
+        items_not_in_dir = [item for item in uniques_noyear if item not in only_tifs_noyear]
         print(f"items not in directory are: \n {items_not_in_dir}")
 
     intersection = list(set(uniques_noyear) & set(only_tifs_noyear))
