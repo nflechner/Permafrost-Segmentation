@@ -13,8 +13,8 @@ def extract_files(zip_path, filenames, output_folder):
                 print(f"File '{new_filename}' not found in the zipfile.")
 
 # Specify the path to your zipfile
-#zip_path = 'home/circ/Data/SpatialEcology_Lab/Siewert/ortoRgb.zip'
-zip_path = 'ortoRgb.zip'
+zip_path = 'home/circ/Data/SpatialEcology_Lab/Siewert/ortoRgb.zip'
+# zip_path = 'ortoRgb.zip'
 
 
 # Specify the list of filenames you want to extract
@@ -22,11 +22,11 @@ zip_path = 'ortoRgb.zip'
 ###################
 #CHANGE DIRECTORY!#
 ###################
-names = pd.read_csv('/home/nadjaflechner/palsa_seg/data_prep/filenames_to_use.csv', header=None, names=['files'])
+names = pd.read_csv('/home/nadjaflechner/palsa_seg/data/data_prep/NEW_filenames_to_use.csv', header=None, names=['files'])
 filenames_to_extract = names.files.tolist()
 
 # Specify the output folder where the extracted files will be saved
-output_folder = '/home/nadjaflechner/filtered_tifs'
+output_folder = '/home/nadjaflechner/NEW_filtered_tifs'
 
 # Create the output folder if it doesn't exist
 #os.makedirs(output_folder, exist_ok=True)
