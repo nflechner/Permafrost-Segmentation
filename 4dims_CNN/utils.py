@@ -8,15 +8,15 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import rasterio
 import numpy as np
-from torchvision import models, transforms
 import matplotlib.pyplot as plt
 from torch import Tensor
 
 class ImageDataset(Dataset):
-    def __init__(self, hs_dir, RGB_dir, labels_df):
+    def __init__(self, hs_dir, RGB_dir, labels_df, im_size):
         self.RGB_dir = RGB_dir
         self.hs_dir = hs_dir
         self.labels_df = labels_df
+        self.im_size = im_size
 
     def __len__(self):
         return len(self.labels_df)
@@ -38,7 +38,7 @@ class ImageDataset(Dataset):
         hs_image_array = np.array(hs_img)
         hs_image_tensor = torch.from_numpy(hs_image_array)
         hs_image_tensor = hs_image_tensor.float()
-        bilinear = nn.Upsample(size=200, mode='bilinear')
+        bilinear = nn.Upsample(size=self.im_size*2, mode='bilinear')
         hs_upsampled_tensor = bilinear(hs_image_tensor.unsqueeze(0)).squeeze(0) 
 
         # converting RGB to tensor
