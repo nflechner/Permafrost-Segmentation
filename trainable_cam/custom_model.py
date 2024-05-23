@@ -1,7 +1,7 @@
 
 import torch.nn as nn
 import torch
-from torchvision import models
+# from torchvision import models
 
 class model_4D(nn.Module):
 

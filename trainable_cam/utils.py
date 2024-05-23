@@ -48,10 +48,10 @@ class ImageDataset(Dataset):
 
         combined_tensor = torch.concatenate((RGB_image_tensor, hs_upsampled_tensor))
 
-        label = self.labels_df.iloc[idx, 0]
-        label = 1 if label > 0 else 0
+        percent_label = self.labels_df.iloc[idx, 0]
+        binary_label = 1 if percent_label > 0 else 0
 
-        return combined_tensor, label
+        return combined_tensor, (percent_label, binary_label)
 
 #https://www.fast.ai/
 #fastai code snippet
