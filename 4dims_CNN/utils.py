@@ -74,8 +74,7 @@ def accuracy(outputs:Tensor, labels:Tensor):
     outputs = torch.argmax(softmax(outputs), dim = 1)
     return (outputs==labels).float().mean().detach().cpu().numpy()
 
-
-#https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
+# https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
 def imshow_transform(image_in, title=None):
     """Imshow for Tensor."""
     img = np.rollaxis(image_in.squeeze().cpu().detach().long().numpy(),0,3)
