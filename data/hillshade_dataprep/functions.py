@@ -103,18 +103,21 @@ class Crop_tif_varsize():
     """
 
     def __init__(self, RGB_name_code, RGB_img_path, hs_name_code, hs_img_path,
-                 rutor_path, destination_path, dims, logger):
+                 DEM_name_code, DEM_img_path, rutor_path, destination_path, dims, logger):
 
         self.RGB_name_code = RGB_name_code
         self.hs_name_code = hs_name_code
+        self.DEM_name_code = DEM_name_code
         self.dimensions = dims
         self.destination_path = destination_path
         self.logger = logger
         self.RGB_img_path = RGB_img_path
         self.hs_img_path = hs_img_path
+        self.DEM_img_path = DEM_img_path
         self.rutor_path = rutor_path
         self.RGB_img = rasterio.open(RGB_img_path)
         self.hs_img = rasterio.open(hs_img_path)
+        self.DEM_img = rasterio.open(DEM_img_path)
         self.filtered_rutor = self.filter_rutor()
 
     def forward(self):
@@ -224,10 +227,12 @@ class Crop_tif_varsize():
         for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry):
             hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_crop_{idx}_hs.tif'
             RGB_path = f'{self.destination_path}/rgb/{self.hs_name_code}_crop_{idx}.tif'
+            DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_crop_{idx}_dem.tif'
 
             # crop hillshade and RGB according to same polygons
             self.make_crop(self.hs_img, polygon, hs_path) 
             self.make_crop(self.RGB_img, polygon, RGB_path)
+            self.make_crop(self.DEM_img, polygon, DEM_path)
             # Write the corresponding percentage to a dictionary as label 
             cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}"] = percentage
 
@@ -264,12 +269,60 @@ class Crop_tif_varsize():
             # Crop the TIF file using the polygon
             hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_negcrop_{idx}_hs.tif'
             RGB_path = f'{self.destination_path}/rgb/{self.hs_name_code}_negcrop_{idx}.tif'
+            DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_negcrop_{idx}_dem.tif'
 
             # crop hillshade and RGB according to same polygons
             self.make_crop(self.hs_img, polygon, hs_path) 
             self.make_crop(self.RGB_img, polygon, RGB_path)
+            self.make_crop(self.DEM_img, polygon, DEM_path)
+
             # Write the corresponding percentage to a dictionary as label 
             cropped_tifs_percentages[f"{self.hs_name_code}_negcrop_{idx}"] = 0
 
         return cropped_tifs_percentages
-                
+    
+    ################
+    # augmentation #
+    ################
+
+    def make_aug_crop(self, img, polygon, output_path):
+        # Crop the TIF file using the polygon
+        cropped_data, cropped_transform = mask(img, [polygon], crop=True)
+
+        # Update the metadata for the cropped TIF
+        cropped_meta = img.meta.copy()
+        cropped_meta.update({"driver": "GTiff",
+                            "height": cropped_data.shape[1],
+                            "width": cropped_data.shape[2],
+                            "transform": cropped_transform})
+        
+
+
+        # Save the cropped TIF file with a unique name
+        with rasterio.open(output_path, "w", **cropped_meta) as dest:
+            dest.write(cropped_data)
+
+    def crop_aug_imgs(self, palsa_rutor):
+
+        """
+        Crop TIF according to the polygons containing palsa. 
+        """
+
+        cropped_tifs_percentages = {}
+        # Iterate over each polygon in the GeoDataFrame
+        for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry):
+
+
+
+            hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_crop_{idx}_hs_aug.tif'
+            RGB_path = f'{self.destination_path}/rgb/{self.hs_name_code}_crop_{idx}_aug.tif'
+            DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_crop_{idx}_dem_aug.tif'
+
+            # crop hillshade and RGB according to same polygons
+            self.make_crop(self.hs_img, polygon, hs_path) 
+            self.make_crop(self.RGB_img, polygon, RGB_path)
+            self.make_crop(self.DEM_img, polygon, DEM_path)
+            # Write the corresponding percentage to a dictionary as label 
+            cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}"] = percentage
+
+        return cropped_tifs_percentages
