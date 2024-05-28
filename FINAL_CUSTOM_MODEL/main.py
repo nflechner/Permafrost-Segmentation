@@ -77,10 +77,69 @@ run = wandb.init(
         "epochs": num_epochs,
         "batch_size": batch_size,
         "n_samples": n_samples,
-        "layers_to_freeze": layers_to_freeze,
         "weight_decay": weight_decay,
         "im_size": im_size,
-        "min_palsa_positive_samples": min_palsa_positive_samples
-    },
-    tags=['4D', 'LRScheduler', 'MSELoss', 'TrainFromScratch']
+        "min_palsa_positive_samples": min_palsa_positive_samples,
+        "augment": augment,
+        "normalize": normalize,
+        "low_pals_in_val": augment
+            }#,
+    #tags=[]
 )
+
+#########################
+# configure dataloaders #
+#########################
+
+# load labels depending on if augmented images should be included
+labels_df = pd.read_csv(labels_file, index_col=0)
+if not augment:
+    # REMOVE all entries in labels_df that end in '_aug'
+
+
+# make train and val dataframe from labels_df
+# labels dataframe filtering depending on samples 
+# LOOK AT 4dim_VGG_CAM.ipynb for how to do it. 
+if low_pals_in_val:
+    pass
+
+else:
+    pass
+
+
+# normalization as an argument for ImageDataset
+# Create the datasets and data loaders
+train_dataset = ImageDataset(hs_dir, RGB_dir, train_df, im_size)
+val_dataset = ImageDataset(hs_dir, RGB_dir, val_df, im_size)
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
+
+################
+# define model #
+################
+
+
+
+
+
+#################
+# training loop #
+#################
+
+
+
+
+
+
+
+
+
+
+##########################
+# plot loss and accuracy #
+##########################
+
+
+#################
+# generate CAMs #
+#################

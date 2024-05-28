@@ -16,10 +16,5 @@
         "low_pals_in_val": false,
         "augment": false,
         "normalize": false
-    },
-    "running_script": {
-        "wandb_project": "VGG_CAMs",
-        "computer": "macbook"
-
     }
 }
