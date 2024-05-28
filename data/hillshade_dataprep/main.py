@@ -78,7 +78,7 @@ for idx, hs_img_name in enumerate(hillshade_filenames):
         hs_img_path = os.path.join(hillshade_tif_dir, hs_img_name)
 
         DEM_img_name_code = hs_img_name.split('.')[0]
-        DEM_img_path = os.path.join(hillshade_tif_dir, hs_img_name)
+        DEM_img_path = os.path.join(DEM_tif_dir, hs_img_name)
 
         cropping = Crop_tif_varsize(RGB_img_name_code, RGB_img_path, hs_img_name_code, 
                                     hs_img_path, DEM_img_name_code, DEM_img_path, 
@@ -93,5 +93,7 @@ for idx, hs_img_name in enumerate(hillshade_filenames):
         not_found.append(hs_img_name)
 
 print(f'The following images had no rgb match: \n {not_found}')
+print(f'number of images where script failed: \n {len(not_found)}')
+
 label_df = pd.DataFrame.from_dict(labels, orient='index', columns = ['palsa_percentage'])
 label_df.to_csv(os.path.join(save_crops_dir, "palsa_labels.csv"))

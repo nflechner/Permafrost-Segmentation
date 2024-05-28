@@ -14,6 +14,9 @@ import os
 import json
 from shapely.geometry import box, Polygon
 import logging
+import random
+import torchvision.transforms.functional as TF
+import torch
 
 ##############
 ## dataprep ##
@@ -126,10 +129,12 @@ class Crop_tif_varsize():
         generated_polygons_all = self.generate_geoseries(self.hs_img.bounds, self.hs_img.crs, self.dimensions) 
         generated_polygons_palsa = self.palsa_polygons(generated_polygons_all)
         positive_labels = self.crop_palsa_imgs(generated_polygons_palsa)
+        aug_labels = self.crop_aug_imgs(generated_polygons_palsa)
         negative_labels = self.crop_negatives(generated_polygons_all, generated_polygons_palsa)
-        all_labels = positive_labels | negative_labels
+        all_labels = positive_labels | negative_labels | aug_labels
         self.hs_img.close()
         self.RGB_img.close()
+        self.DEM_img.close()
         return all_labels
 
     def filter_rutor(self):
@@ -225,9 +230,9 @@ class Crop_tif_varsize():
         cropped_tifs_percentages = {}
         # Iterate over each polygon in the GeoDataFrame
         for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry):
-            hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_crop_{idx}_hs.tif'
+            hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_crop_{idx}.tif'
             RGB_path = f'{self.destination_path}/rgb/{self.hs_name_code}_crop_{idx}.tif'
-            DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_crop_{idx}_dem.tif'
+            DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_crop_{idx}.tif'
 
             # crop hillshade and RGB according to same polygons
             self.make_crop(self.hs_img, polygon, hs_path) 
@@ -267,9 +272,9 @@ class Crop_tif_varsize():
         # Iterate over each polygon in the GeoDataFrame
         for idx, polygon in enumerate(negative_samples.geometry):
             # Crop the TIF file using the polygon
-            hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_negcrop_{idx}_hs.tif'
+            hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_negcrop_{idx}.tif'
             RGB_path = f'{self.destination_path}/rgb/{self.hs_name_code}_negcrop_{idx}.tif'
-            DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_negcrop_{idx}_dem.tif'
+            DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_negcrop_{idx}.tif'
 
             # crop hillshade and RGB according to same polygons
             self.make_crop(self.hs_img, polygon, hs_path) 
@@ -285,7 +290,7 @@ class Crop_tif_varsize():
     # augmentation #
     ################
 
-    def make_aug_crop(self, img, polygon, output_path):
+    def make_aug_crop(self, img, polygon, output_path, transform, factor):
         # Crop the TIF file using the polygon
         cropped_data, cropped_transform = mask(img, [polygon], crop=True)
 
@@ -296,11 +301,26 @@ class Crop_tif_varsize():
                             "width": cropped_data.shape[2],
                             "transform": cropped_transform})
         
+        cropped_data = torch.Tensor(cropped_data)
 
+        if transform == 'hflip':
+            cropped_data = TF.hflip(cropped_data)
+
+        elif transform == 'rotate':
+            cropped_data = TF.rotate(cropped_data, angle=90)
+
+        elif transform == 'saturation':
+            cropped_data = TF.adjust_saturation(cropped_data, factor)
+
+        elif transform == 'contrast':
+            cropped_data = TF.adjust_contrast(cropped_data, factor)
+    
+        elif transform == 'brightness':
+            cropped_data = TF.adjust_brightness(cropped_data, factor)
 
         # Save the cropped TIF file with a unique name
         with rasterio.open(output_path, "w", **cropped_meta) as dest:
-            dest.write(cropped_data)
+            dest.write(cropped_data.numpy())
 
     def crop_aug_imgs(self, palsa_rutor):
 
@@ -312,17 +332,33 @@ class Crop_tif_varsize():
         # Iterate over each polygon in the GeoDataFrame
         for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry):
 
-
-
-            hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_crop_{idx}_hs_aug.tif'
+            hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_crop_{idx}_aug.tif'
             RGB_path = f'{self.destination_path}/rgb/{self.hs_name_code}_crop_{idx}_aug.tif'
-            DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_crop_{idx}_dem_aug.tif'
+            DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_crop_{idx}_aug.tif'
 
-            # crop hillshade and RGB according to same polygons
-            self.make_crop(self.hs_img, polygon, hs_path) 
-            self.make_crop(self.RGB_img, polygon, RGB_path)
-            self.make_crop(self.DEM_img, polygon, DEM_path)
-            # Write the corresponding percentage to a dictionary as label 
-            cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}"] = percentage
+            transform = random.choice(['hflip', 'rotate', 'sharpness', 'saturation', 'contrast', 'brightness'])
+
+            # transformations that apply to all layers
+            if transform in ['hflip', 'rotate']:
+
+                # crop hillshade and RGB according to same polygons
+                self.make_aug_crop(self.hs_img, polygon, hs_path, transform, 0) 
+                self.make_aug_crop(self.RGB_img, polygon, RGB_path, transform, 0)
+                self.make_aug_crop(self.DEM_img, polygon, DEM_path, transform, 0)
+                # Write the corresponding percentage to a dictionary as label 
+                cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}_aug"] = percentage
+
+            # only transform RGB layer
+            if transform in ['sharpness', 'saturation', 'contrast', 'brightness']:
+
+                # factor to adjust by a random factor. 
+                factor = random.uniform(0.3,1.8)
+
+                # crop hillshade and RGB according to same polygons
+                self.make_aug_crop(self.RGB_img, polygon, RGB_path, transform, factor)
+                self.make_crop(self.hs_img, polygon, hs_path) 
+                self.make_crop(self.DEM_img, polygon, DEM_path)
+                # Write the corresponding percentage to a dictionary as label hs
+                cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}_aug"] = percentage
 
         return cropped_tifs_percentages
