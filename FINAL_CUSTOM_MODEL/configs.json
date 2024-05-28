@@ -1,21 +1,19 @@
 {
     "paths": {
-        "original_tif_dir": "/home/nadjaflechner/Palsa_data/filtered_tifs/",
-        "palsa_shapefile_path": "/home/nadjaflechner/palsa_seg/pals_rutor/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp",
-        "save_crops_dir": "/home/nadjaflechner/Palsa_data/dataset_500m/"
+        "data": "/home/nadjaflechner/Palsa_data/generated_datasets/FINAL_200m_dataset/",
+        "palsa_shapefile": "/home/nadjaflechner/palsa_seg/pals_rutor/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp"
     },
     "hyperparams": {
         "n_samples": 10000,
         "batch_size": 20,
         "num_epochs": 15,
-        "lr": 0.00001
+        "lr": 0.00001,
+        "weight_decay": 0.04
     },
     "data": {
-        "n_samples": 10000,
-        "batch_size": 20,
-        "low_pals_in_val": true,
         "im_size": 200,
         "min_palsa_positive_samples": 10,
+        "low_pals_in_val": false,
         "augment": false,
         "normalize": false
     },
