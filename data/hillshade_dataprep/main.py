@@ -45,8 +45,9 @@ with open(config_path, 'r') as config_file:
 config_paths = configs.get('paths', {}) 
 palsa_shapefile_path = config_paths.get('palsa_shapefile_path') # load shapefile path
 save_crops_dir = config_paths.get('save_crops_dir') # load directory with all tifs
-original_tif_dir = config_paths.get('original_tif_dir') # load directory with all tifs
+RGB_tif_dir = config_paths.get('RGB_tif_dir') # load directory with all tifs
 hillshade_tif_dir = config_paths.get('hillshade_tif_dir') # load directory with all tifs
+DEM_tif_dir = config_paths.get('DEM_tif_dir') # load directory with all tifs
 
 config_img = configs.get('image_info', {}) 
 dims = int(config_img.get('meters_per_axis')) 
@@ -69,21 +70,26 @@ not_found = []
 for idx, hs_img_name in enumerate(hillshade_filenames):
     # grab corresponding RGB image (matching the hillshade)
     try:
-        RGB_tif_name = get_RGB_match(hs_img_name, original_tif_dir) 
+        RGB_tif_name = get_RGB_match(hs_img_name, RGB_tif_dir) 
         RGB_img_name_code = RGB_tif_name.split('.')[0]
-        RGB_img_path = os.path.join(original_tif_dir, RGB_tif_name)
+        RGB_img_path = os.path.join(RGB_tif_dir, RGB_tif_name)
 
         hs_img_name_code = hs_img_name.split('.')[0]
         hs_img_path = os.path.join(hillshade_tif_dir, hs_img_name)
 
-        cropping = Crop_tif_varsize(RGB_img_name_code, RGB_img_path, 
-                                    hs_img_name_code, hs_img_path, palsa_shapefile_path, 
-                                    save_crops_dir, dims, logger)
+        DEM_img_name_code = hs_img_name.split('.')[0]
+        DEM_img_path = os.path.join(hillshade_tif_dir, hs_img_name)
+
+        cropping = Crop_tif_varsize(RGB_img_name_code, RGB_img_path, hs_img_name_code, 
+                                    hs_img_path, DEM_img_name_code, DEM_img_path, 
+                                    palsa_shapefile_path, save_crops_dir, dims, logger)
+        
+        # Run the cropping script
         new_labels = cropping.forward()
         labels = labels | new_labels
         logger.info(f'Generated training samples from image {idx+1}/{len(hillshade_filenames)}')
     except: 
-        logger.info(f'RGB match for {hs_img_name} not found')
+        logger.info(f'RGB or DEM match for {hs_img_name} not found')
         not_found.append(hs_img_name)
 
 print(f'The following images had no rgb match: \n {not_found}')

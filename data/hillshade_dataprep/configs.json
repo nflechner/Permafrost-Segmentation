@@ -1,9 +1,10 @@
 {
     "paths": {
-        "original_tif_dir": "/home/nadjaflechner/Palsa_data/filtered_tifs/",
-        "hillshade_tif_dir": "/home/nadjaflechner/Palsa_data/hillshade/",
+        "RGB_tif_dir": "/home/nadjaflechner/Palsa_data/filtered_tifs/RGB/",
+        "hillshade_tif_dir": "/home/nadjaflechner/Palsa_data/filtered_tifs/hillshade/",
+        "DEM_tif_dir": "/home/nadjaflechner/Palsa_data/filtered_tifs/DEM",
         "palsa_shapefile_path": "/home/nadjaflechner/Palsa_data/Palsa_rutor/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp",
-        "save_crops_dir": "/home/nadjaflechner/Palsa_data/cropped_hillshade_100m/"
+        "save_crops_dir": "/home/nadjaflechner/Palsa_data/generated_datasets/FINAL_200m_dataset"
     },
     "image_info": {
         "meters_per_axis": "100"
