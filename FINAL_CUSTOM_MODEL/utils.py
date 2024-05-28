@@ -24,7 +24,7 @@ class ImageDataset(Dataset):
     def __getitem__(self, idx):
         img_name = self.labels_df.index[idx]
         RGB_img_path = os.path.join(self.RGB_dir, f"{img_name}.tif")
-        hs_img_path = os.path.join(self.hs_dir, f"{img_name}_hs.tif")
+        hs_img_path = os.path.join(self.hs_dir, f"{img_name}.tif")
 
         with rasterio.open(RGB_img_path) as RGB_src:
             # Read the image data
