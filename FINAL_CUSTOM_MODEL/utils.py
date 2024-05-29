@@ -10,13 +10,55 @@ import rasterio
 import numpy as np
 import matplotlib.pyplot as plt
 from torch import Tensor
+from torchvision import transforms
+
+def filter_dataset(labels_file, augment, 
+                         min_palsa_positive_samples, 
+                         low_pals_in_val, n_samples):
+
+    n_train = int(round(n_samples*0.8))
+    n_val = int(round(n_samples*0.2))
+
+    # labels as dataframe
+    labels_df = pd.read_csv(labels_file, index_col=0)
+
+    # remove augmented images depending on configs
+    if not augment:
+        labels_df = labels_df.loc[~labels_df.index.str.endswith('_aug')]
+
+    # impose minimum palsa percentage for positive samples
+    if min_palsa_positive_samples > 0:
+
+        # find indices of samples with 0<x<threshold palsa
+        drop_range = labels_df[ 
+            (labels_df['palsa_percentage'] > 0) 
+            & (labels_df['palsa_percentage'] <= min_palsa_positive_samples) ].index
+
+        # remove low palsa images from train set
+        train_df = labels_df.drop(drop_range).sample(n_train)
+
+        # sample val images from unfiltered df
+        if low_pals_in_val:
+            val_df = labels_df.drop(train_df.index).sample(n_val)
+
+        # sample val images from filtered df
+        if not low_pals_in_val:
+            val_df = labels_df.drop(drop_range + train_df.index).sample(n_val)
+
+    # if no minimum palsa percentage is imposed
+    elif min_palsa_positive_samples == 0:
+        train_df = labels_df.sample(n_train)
+        val_df = labels_df.drop(train_df.index).sample(n_val)
+    
+    return train_df, val_df
 
 class ImageDataset(Dataset):
-    def __init__(self, hs_dir, RGB_dir, labels_df, im_size):
+    def __init__(self, depth_dir, RGB_dir, labels_df, im_size, normalize):
         self.RGB_dir = RGB_dir
-        self.hs_dir = hs_dir
+        self.depth_dir = depth_dir
         self.labels_df = labels_df
         self.im_size = im_size
+        self.normalize = normalize
 
     def __len__(self):
         return len(self.labels_df)
@@ -24,7 +66,7 @@ class ImageDataset(Dataset):
     def __getitem__(self, idx):
         img_name = self.labels_df.index[idx]
         RGB_img_path = os.path.join(self.RGB_dir, f"{img_name}.tif")
-        hs_img_path = os.path.join(self.hs_dir, f"{img_name}.tif")
+        hs_img_path = os.path.join(self.depth_dir, f"{img_name}.tif")
 
         with rasterio.open(RGB_img_path) as RGB_src:
             # Read the image data
@@ -47,6 +89,13 @@ class ImageDataset(Dataset):
         RGB_image_tensor = RGB_image_tensor.float()
 
         combined_tensor = torch.concatenate((RGB_image_tensor, hs_upsampled_tensor))
+
+        if self.normalize: 
+            # transforms.Normalize(mean=[r,g,b,d],
+            #             std=[r,g,b,d])
+            pass
+
+
 
         label = self.labels_df.iloc[idx, 0]
         label = 1 if label > 0 else 0
