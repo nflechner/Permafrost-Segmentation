@@ -12,7 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import rasterio
 import numpy as np
-from utils import ImageDataset, SaveFeatures, accuracy, imshow_transform
+from utils import ImageDataset, SaveFeatures, filter_dataset, accuracy, imshow_transform
 from custom_model import model_4D
 from torch.autograd import Variable
 from skimage.transform import resize
@@ -46,8 +46,6 @@ config_hyperparams = configs.get('hyperparams', {})
 
 # assign hyperparams
 n_samples = config_hyperparams.get('n_samples')
-n_samples_train = int(round(n_samples*0.8))
-n_samples_val = int(round(n_samples*0.2))
 batch_size = config_hyperparams.get('batch_size')
 num_epochs = config_hyperparams.get('num_epochs')
 lr = config_hyperparams.get('lr')
@@ -62,7 +60,7 @@ min_palsa_positive_samples = config_data.get('min_palsa_positive_samples')
 low_pals_in_val = config_data.get('low_pals_in_val')
 augment = config_data.get('augment')
 normalize = config_data.get('normalize')
-
+depth_layer = config_data.get('depth_layer')
 
 ##########################
 # log hyperparams to w&b #
@@ -82,7 +80,8 @@ run = wandb.init(
         "min_palsa_positive_samples": min_palsa_positive_samples,
         "augment": augment,
         "normalize": normalize,
-        "low_pals_in_val": augment
+        "low_pals_in_val": low_pals_in_val,
+        "depth_layer": depth_layer
             }#,
     #tags=[]
 )
@@ -91,26 +90,14 @@ run = wandb.init(
 # configure dataloaders #
 #########################
 
-# load labels depending on if augmented images should be included
-labels_df = pd.read_csv(labels_file, index_col=0)
-if not augment:
-    # REMOVE all entries in labels_df that end in '_aug'
+train_files, val_files = filter_dataset(labels_file, augment, min_palsa_positive_samples, low_pals_in_val, n_samples)
 
+# choose depth data based on configs
+depth_dir = hs_dir if depth_layer == "hs" else dem_dir
 
-# make train and val dataframe from labels_df
-# labels dataframe filtering depending on samples 
-# LOOK AT 4dim_VGG_CAM.ipynb for how to do it. 
-if low_pals_in_val:
-    pass
-
-else:
-    pass
-
-
-# normalization as an argument for ImageDataset
 # Create the datasets and data loaders
-train_dataset = ImageDataset(hs_dir, RGB_dir, train_df, im_size)
-val_dataset = ImageDataset(hs_dir, RGB_dir, val_df, im_size)
+train_dataset = ImageDataset(depth_dir, rgb_dir, train_files, im_size, normalize)
+val_dataset = ImageDataset(depth_dir, rgb_dir, val_files, im_size, normalize)
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
