@@ -91,11 +91,14 @@ class ImageDataset(Dataset):
         combined_tensor = torch.concatenate((RGB_image_tensor, hs_upsampled_tensor))
 
         if self.normalize: 
-            # transforms.Normalize(mean=[r,g,b,d],
-            #             std=[r,g,b,d])
-            pass
-
-
+            if str(self.depth_dir).endswith('hs'):
+                # transforms.Normalize(mean=[r,g,b,HS_MEAN],
+                #             std=[r,g,b,d])
+                pass
+            if str(self.depth_dir).endswith('rgb'):
+                # transforms.Normalize(mean=[r,g,b,HS_STD],
+                #             std=[r,g,b,d])
+                pass
 
         label = self.labels_df.iloc[idx, 0]
         label = 1 if label > 0 else 0
