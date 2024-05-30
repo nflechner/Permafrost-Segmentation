@@ -20,6 +20,7 @@ from skimage.io import imshow
 import wandb
 import matplotlib.pyplot as plt 
 import torch.optim.lr_scheduler as lr_scheduler
+import torchmetrics
 import json
 
 ##################
@@ -49,6 +50,7 @@ n_samples = config_hyperparams.get('n_samples')
 batch_size = config_hyperparams.get('batch_size')
 num_epochs = config_hyperparams.get('num_epochs')
 lr = config_hyperparams.get('lr')
+lr_gamma = config_hyperparams.get('lr_gamma')
 weight_decay = config_hyperparams.get('weight_decay')
 
 # load data configs dictionary
@@ -72,6 +74,7 @@ run = wandb.init(
     # Track hyperparameters and run metadata
     config={
         "learning_rate": lr,
+        "lr_gamma": lr_gamma,
         "epochs": num_epochs,
         "batch_size": batch_size,
         "n_samples": n_samples,
@@ -105,27 +108,90 @@ val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 # define model #
 ################
 
+model = model_4D()
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model.to(device)
+optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=lr_gamma)
+loss_function = nn.CrossEntropyLoss()
 
+#######################
+# model training loop #
+#######################
 
+# define metrics
+Accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=2)
+F1 = torchmetrics.F1Score(task="multiclass", num_classes=2)
+Recall = torchmetrics.Recall(task="multiclass", average="micro", num_classes=2)
 
-#################
-# training loop #
-#################
+max_val_F1 = 0
 
+for epoch in range(num_epochs):
+    print('EPOCH: ',epoch+1)
 
+    ############
+    # training #
+    ############
 
+    model.train()
+    for batch_idx, (images, labels) in enumerate(train_loader):     
 
+        # load images and labels 
+        images = Variable(images).to(device)  
+        labels = Variable(labels.long()).to(device)  
 
+        # train batch   
+        outputs = model(images) 
+        optimizer.zero_grad()
+        loss = loss_function(outputs, labels)
+        loss.backward()
+        optimizer.step()  
 
+        # update metrics
+        wandb.log({"train_loss": loss.item()})
+        wandb.log({"train_Accuracy": Accuracy(outputs.softmax(dim=-1), labels)})
+        wandb.log({"train_Recall": Recall(outputs.softmax(dim=-1), labels)})
+        wandb.log({"train_F1": F1(outputs.softmax(dim=-1), labels)})
 
+    ##############
+    # validation #
+    ##############
 
+    val_F1 = []
+    model.eval()
+    with torch.no_grad():
+        for batch_idx, (images, labels) in enumerate(val_loader):  
 
+            # load images and labels 
+            images = Variable(images).to(device)  
+            labels = Variable(labels.long()).to(device)  
+            outputs = model(images) 
+            loss = loss_function(outputs, labels)
 
-##########################
-# plot loss and accuracy #
-##########################
+            # update metrics
+            wandb.log({"val_loss": loss.item()})
+            wandb.log({"val_Accuracy": Accuracy(outputs.softmax(dim=-1), labels)})
+            wandb.log({"val_Recall": Recall(outputs.softmax(dim=-1), labels)})
 
+            # handle F1 separately for best model selection
+            f1 = F1(outputs.softmax(dim=-1), labels)
+            val_F1.append(f1.detach().cpu().numpy())
+            wandb.log({"val_F1": f1})
+
+    # lr scheduler step 
+    scheduler.step()
+
+    # update current best model
+    if np.mean(val_F1) > max_val_F1:
+        best_model = model.state_dict()
+        max_val_F1 = np.mean(val_F1)
+
+# after all epochs, save the best model as an artifact to wandb
+torch.save(best_model, '/home/nadjaflechner/models/model.pth')
+artifact = wandb.Artifact('model', type='model')
+artifact.add_file('/home/nadjaflechner/models/model.pth')
+run.log_artifact(artifact)
 
 #################
 # generate CAMs #

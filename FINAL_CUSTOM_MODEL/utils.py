@@ -10,7 +10,7 @@ import rasterio
 import numpy as np
 import matplotlib.pyplot as plt
 from torch import Tensor
-from torchvision import transforms
+# from torchvision import transforms
 
 def filter_dataset(labels_file, augment, 
                          min_palsa_positive_samples, 
@@ -112,19 +112,6 @@ class SaveFeatures():
     def __init__(self,m): self.hook = m.register_forward_hook(self.hook_fn)
     def hook_fn(self, module, input, output): self.features = output
     def remove(self): self.hook.remove()
-
-# https://github.com/tony-mtz/CAM/blob/master/network/utils.py
-# def accuracy(input:Tensor, targs:Tensor):
-#     n = targs.shape[0]
-#     input = input.argmax(dim=-1).view(n,-1)
-#     targs = targs.view(n,-1)
-#     return (input==targs).float().mean().cpu().detach().numpy()
-
-def accuracy(outputs:Tensor, labels:Tensor):
-    # conv_outputs = torch.where(outputs.squeeze() > 0.5, 1.0, 0.0)
-    softmax = nn.Softmax()
-    outputs = torch.argmax(softmax(outputs), dim = 1)
-    return (outputs==labels).float().mean().detach().cpu().numpy()
 
 # https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
 def imshow_transform(image_in, title=None):
