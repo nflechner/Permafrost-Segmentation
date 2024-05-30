@@ -158,7 +158,7 @@ for epoch in range(num_epochs):
     # validation #
     ##############
 
-    val_F1 = []
+    running_val_F1 = []
     model.eval()
     with torch.no_grad():
         for batch_idx, (images, labels) in enumerate(val_loader):  
@@ -170,22 +170,22 @@ for epoch in range(num_epochs):
             loss = loss_function(outputs, labels)
 
             # update metrics
-            wandb.log({"val_loss": loss.item()})
-            wandb.log({"val_Accuracy": Accuracy(outputs.softmax(dim=-1), labels)})
-            wandb.log({"val_Recall": Recall(outputs.softmax(dim=-1), labels)})
+            val_loss = loss.item()
+            val_Accuracy = Accuracy(outputs.softmax(dim=-1), labels)
+            val_Recall = Recall(outputs.softmax(dim=-1), labels)
 
             # handle F1 separately for best model selection
             f1 = F1(outputs.softmax(dim=-1), labels)
-            val_F1.append(f1.detach().cpu().numpy())
-            wandb.log({"val_F1": f1})
+            running_val_F1.append(f1.detach().cpu().numpy())
+            val_F1 = f1
 
     # lr scheduler step 
     scheduler.step()
 
     # update current best model
-    if np.mean(val_F1) > max_val_F1:
+    if np.mean(running_val_F1) > max_val_F1:
         best_model = model.state_dict()
-        max_val_F1 = np.mean(val_F1)
+        max_val_F1 = np.mean(running_val_F1)
 
 # after all epochs, save the best model as an artifact to wandb
 torch.save(best_model, '/home/nadjaflechner/models/model.pth')
