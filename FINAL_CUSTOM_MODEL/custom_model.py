@@ -1,11 +1,10 @@
 
 import torch.nn as nn
 import torch
-from torchvision import models
 
 class model_4D(nn.Module):
 
-    def __init__(self, init_weights=False): # INITWEIGHTS SHOULD BE TRUE 
+    def __init__(self, init_weights=False): 
         super(model_4D, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(4, 64, kernel_size=3, padding=1),
