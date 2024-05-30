@@ -196,3 +196,13 @@ run.log_artifact(artifact)
 #################
 # generate CAMs #
 #################
+
+# generate CAMs
+# generate SNIC
+# generate pseudomask 
+
+##############
+# finish run #
+##############
+
+wandb.finish()
