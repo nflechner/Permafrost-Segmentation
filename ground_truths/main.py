@@ -59,9 +59,8 @@ logger.info('Configurations were loaded')
 ## code ##
 ##########
 
-# Filter hillshade data so only those containing palsa remain
-logger.info('Starting to sample relevant TIF paths...')
-hillshade_filenames = filter_imgs(palsa_shapefile_path, hillshade_tif_dir) # TODO: could already filter 'only newest' here.. 
+# Filter hillshade data so only those containing a ground truth polygon remain
+hillshade_filenames = filter_imgs(groundtruth_shapefile_path, hillshade_tif_dir) 
 logger.info(f'{len(hillshade_filenames)} TIF paths have been loaded!')
 
 # Loop over hillshade images to generate the crops. 
