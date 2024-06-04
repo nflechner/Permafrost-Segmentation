@@ -10,7 +10,7 @@ import rasterio
 import numpy as np
 import matplotlib.pyplot as plt
 from torch import Tensor
-# from torchvision import transforms
+from torchvision import transforms
 
 def filter_dataset(labels_file, augment, 
                          min_palsa_positive_samples, 
@@ -95,13 +95,14 @@ class ImageDataset(Dataset):
         combined_tensor = torch.concatenate((RGB_image_tensor, hs_upsampled_tensor))
 
         if self.normalize: 
+            # use dataset wide calculated means and standard deviations
             if str(self.depth_dir).endswith('hs'):
-                # transforms.Normalize(mean=[r,g,b,HS_MEAN],
-                #             std=[r,g,b,d])
+                transforms.Normalize(mean=[74.90, 85.26, 80.06,179.18],
+                            std=[15.05, 13.88, 12.01,10.65]) 
                 pass
-            if str(self.depth_dir).endswith('rgb'):
-                # transforms.Normalize(mean=[r,g,b,HS_STD],
-                #             std=[r,g,b,d])
+            if str(self.depth_dir).endswith('dem'):
+                transforms.Normalize(mean=[74.90, 85.26, 80.06,608.95],
+                            std=[15.05, 13.88, 12.01, 2.30])
                 pass
 
         label = self.labels_df.iloc[idx, 0]
