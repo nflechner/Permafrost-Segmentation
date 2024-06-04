@@ -12,7 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import rasterio
 import numpy as np
-from utils import ImageDataset, SaveFeatures, filter_dataset, accuracy, imshow_transform
+from utils import ImageDataset, SaveFeatures, filter_dataset, imshow_transform
 from custom_model import model_4D
 from torch.autograd import Variable
 from skimage.transform import resize
@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import torch.optim.lr_scheduler as lr_scheduler
 import torchmetrics
 import json
+from pseudomask import Pseudomasks
 
 ##################
 ## load configs ##
@@ -68,6 +69,8 @@ depth_layer = config_data.get('depth_layer')
 # log hyperparams to w&b #
 ##########################
 
+wandb_tags = [str(tag) for tag in [low_pals_in_val, augment, normalize, depth_layer] if tag]
+
 run = wandb.init(
     # Set the project where this run will be logged
     project="VGG_CAMs",
@@ -85,8 +88,8 @@ run = wandb.init(
         "normalize": normalize,
         "low_pals_in_val": low_pals_in_val,
         "depth_layer": depth_layer
-            }#,
-    #tags=[]
+            },
+    tags= wandb_tags
 )
 
 #########################
@@ -121,9 +124,9 @@ loss_function = nn.CrossEntropyLoss()
 #######################
 
 # define metrics
-Accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=2)
-F1 = torchmetrics.F1Score(task="multiclass", num_classes=2)
-Recall = torchmetrics.Recall(task="multiclass", average="micro", num_classes=2)
+Accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=2).to(device)
+F1 = torchmetrics.F1Score(task="multiclass", num_classes=2).to(device)
+Recall = torchmetrics.Recall(task="multiclass", average="micro", num_classes=2).to(device)
 
 max_val_F1 = 0
 
@@ -134,8 +137,15 @@ for epoch in range(num_epochs):
     # training #
     ############
 
+    train_loss = 0
+    train_accuracy = 0 
+    train_Recall = 0 
+    train_F1 = 0 
+
     model.train()
+    train_batch_counter = 0
     for batch_idx, (images, labels) in enumerate(train_loader):     
+        train_batch_counter += 1
 
         # load images and labels 
         images = Variable(images).to(device)  
@@ -149,10 +159,10 @@ for epoch in range(num_epochs):
         optimizer.step()  
 
         # update metrics
-        wandb.log({"train_loss": loss.item()})
-        wandb.log({"train_Accuracy": Accuracy(outputs.softmax(dim=-1), labels)})
-        wandb.log({"train_Recall": Recall(outputs.softmax(dim=-1), labels)})
-        wandb.log({"train_F1": F1(outputs.softmax(dim=-1), labels)})
+        train_loss += loss.item()
+        train_accuracy += Accuracy(outputs.softmax(dim=-1), labels)
+        train_Recall += Recall(outputs.softmax(dim=-1), labels)
+        train_F1 += F1(outputs.softmax(dim=-1), labels)
 
     ##############
     # validation #
@@ -182,6 +192,12 @@ for epoch in range(num_epochs):
     # lr scheduler step 
     scheduler.step()
 
+    # update metrics
+    wandb.log({"train_loss": train_loss / train_batch_counter})
+    wandb.log({"train_accuracy": train_accuracy / train_batch_counter})
+    wandb.log({"train_Recall": train_Recall / train_batch_counter})
+    wandb.log({"train_F1": train_F1 / train_batch_counter})
+
     # update current best model
     if np.mean(running_val_F1) > max_val_F1:
         best_model = model.state_dict()
@@ -197,9 +213,35 @@ run.log_artifact(artifact)
 # generate CAMs #
 #################
 
-# generate CAMs
-# generate SNIC
-# generate pseudomask 
+# df1, df2 = filter_dataset(labels_file, 
+#                 augment=False, 
+#                 min_palsa_positive_samples=1,
+#                 low_pals_in_val=False,
+#                 n_samples=200)
+
+# combined_df = df1.append(df2)
+# testing_dataset =  ImageDataset(depth_dir, rgb_dir, combined_df, 200, normalize=False)
+
+test_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=1)
+
+pseudomask_generator = Pseudomasks(
+                            cam_threshold = 0.5, 
+                            overlap_threshold= 0.5,
+                            snic_seeds = 100,
+                            snic_compactness = 10)
+
+pseudomask_generator.model_from_dict(best_model)
+
+for i in range(5):
+    im, lab = next(iter(test_loader))
+    if not lab == 0:
+        pseudomask= pseudomask_generator.forward()
+        # ALSO PLOT GROUND TRUTH ABOVE (GIVE AS LABEL)
+
+        ####
+        # ADD COMPARISON OF PSEUDOMASK AND GROUND TRUTH HERE. 
+        ####
+
 
 ##############
 # finish run #

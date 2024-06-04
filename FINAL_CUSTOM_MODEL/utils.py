@@ -15,10 +15,6 @@ from torchvision import transforms
 def filter_dataset(labels_file, augment, 
                          min_palsa_positive_samples, 
                          low_pals_in_val, n_samples):
-
-    ### WHEN TESTING ON MACBOOK
-    # n_train = int(round(n_samples*0.5))
-    # n_val = int(round(n_samples*0.5))
     
     n_train = int(round(n_samples*0.8))
     n_val = int(round(n_samples*0.2))
@@ -47,7 +43,8 @@ def filter_dataset(labels_file, augment,
 
         # sample val images from filtered df
         if not low_pals_in_val:
-            val_df = labels_df.drop(drop_range + train_df.index).sample(n_val)
+            val_df = labels_df.drop(drop_range)
+            val_df = val_df.drop(train_df.index).sample(n_val)
 
     # if no minimum palsa percentage is imposed
     elif min_palsa_positive_samples == 0:
