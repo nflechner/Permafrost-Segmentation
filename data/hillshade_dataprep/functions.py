@@ -54,13 +54,13 @@ def tif_from_ruta(ruta_geometry):
     elif 75 <= int(str(miny_ruta)[3:5]) < 100:
         km_siffran_y = '75'
 
-    if 0 <= int(str(minx_ruta)[3:5]) < 25:
+    if 0 <= int(str(minx_ruta)[2:4]) < 25:
         km_siffran_x = '00'
-    elif 25 <= int(str(minx_ruta)[3:5]) < 50:
+    elif 25 <= int(str(minx_ruta)[2:4]) < 50:
         km_siffran_x = '25'
-    elif 50 <= int(str(minx_ruta)[3:5]) < 75:
+    elif 50 <= int(str(minx_ruta)[2:4]) < 75:
         km_siffran_x = '50'
-    elif 75 <= int(str(minx_ruta)[3:5]) < 100:
+    elif 75 <= int(str(minx_ruta)[2:4]) < 100:
         km_siffran_x = '75'
 
     year = 2018 # WHICH YEAR SHOULD IT BE??
