@@ -19,19 +19,25 @@ import torch.optim.lr_scheduler as lr_scheduler
 from skimage.segmentation import mark_boundaries, find_boundaries
 from pysnic.algorithms.snic import snic
 
-
+class PseudomaskEval():
+    def __init__(self):
+        self.MSE = nn.MSELoss()
+    
+    def calc_metrics(self, pseudomask, gt):
+        MSE = self.MSE(pseudomask, gt)
+        return MSE
 
 class Pseudomasks():
-    def __init__(self, cam_threshold, overlap_threshold, snic_seeds, snic_compactness):
+    def __init__(self, cam_threshold_factor, overlap_threshold, snic_seeds, snic_compactness):
 
-        self.cam_threshold = cam_threshold
+        self.cam_threshold_factor = cam_threshold_factor
         self.overlap_threshold = overlap_threshold
         self.snic_seeds = snic_seeds
         self.snic_compactness = snic_compactness
         self.model = None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    def forward(self, im, lab):
+    def forward(self, im, gt):
 
         #get the last convolution
         sf = SaveFeatures(self.model.features[-4])
@@ -46,7 +52,7 @@ class Pseudomasks():
                                             arr[:,1,:,:].unsqueeze(1), 
                                             scale_factor = im.shape[3]/arr.shape[3], 
                                             mode='bilinear').cpu().detach()
-        activation_threshold = pals_acts.mean() + torch.std(pals_acts)
+        activation_threshold = (pals_acts.mean() + torch.std(pals_acts)) * self.cam_threshold_factor
         pixels_activated = torch.where(torch.Tensor(pals_acts) > activation_threshold.cpu(), 1, 0).squeeze(0).permute(1,2,0).numpy()
 
         # Plot image with CAM
@@ -58,7 +64,7 @@ class Pseudomasks():
         # Plotting #
         ############
 
-        fig, (ax1, ax2, ax3, ax4, ax5) = plt.subplots(1,5, figsize = (25,6))
+        fig, (ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(1,6, figsize = (30,6))
 
         ax1.imshow(cpu_img[:,:,:3])
         ax1.set_xticks([])
@@ -85,6 +91,11 @@ class Pseudomasks():
         ax5.set_xticks([])
         ax5.set_yticks([])
         ax5.set_title('Pseudomask')
+
+        ax6.imshow(gt.squeeze(0).permute(1,2,0).long().numpy())
+        ax6.set_xticks([])
+        ax6.set_yticks([])
+        ax6.set_title('Ground Truth')
 
         plt.tight_layout()
         wandb.log({'pseudomask': fig})
