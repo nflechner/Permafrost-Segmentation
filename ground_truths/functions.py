@@ -54,13 +54,13 @@ def tif_from_ruta(ruta_geometry):
     elif 75 <= int(str(miny_ruta)[3:5]) < 100:
         km_siffran_y = '75'
 
-    if 0 <= int(str(minx_ruta)[3:5]) < 25:
+    if 0 <= int(str(minx_ruta)[2:4]) < 25:
         km_siffran_x = '00'
-    elif 25 <= int(str(minx_ruta)[3:5]) < 50:
+    elif 25 <= int(str(minx_ruta)[2:4]) < 50:
         km_siffran_x = '25'
-    elif 50 <= int(str(minx_ruta)[3:5]) < 75:
+    elif 50 <= int(str(minx_ruta)[2:4]) < 75:
         km_siffran_x = '50'
-    elif 75 <= int(str(minx_ruta)[3:5]) < 100:
+    elif 75 <= int(str(minx_ruta)[2:4]) < 100:
         km_siffran_x = '75'
 
     year = 2018 # WHICH YEAR SHOULD IT BE??
@@ -222,48 +222,24 @@ class Crop_tif_varsize():
         with rasterio.open(output_path, "w", **cropped_meta) as dest:
             dest.write(cropped_data)
 
-        ##########
-        # make ground truth mask
+    def make_ground_truth(self, intersections, img_crop_path, gt_path):
 
-        # find which ground truth polygons overlap with this 200x200 field
-        intersections = gpd.overlay(self.groundtruth_polygs, polygon, how='intersection')
-
-        # convert image to empty but retaining all metainfo
-        cropped_img = rasterio.open(output_path)
-        cropped_img = cropped_img*0
+        # use previously created cropped image
+        cropped_img = rasterio.open(img_crop_path)
         masked_data, _ = mask(cropped_img, [polyg for polyg in intersections.geometry])
+        masked_data[masked_data >0] = 1 # make the mask binary
 
-        with rasterio.open(output_path, "w", **cropped_meta) as dest:
-            dest.write(cropped_data)
-
-    def make_ground_truth(self, img, polygon, output_path, gt_path):
-        # Crop the TIF file using the polygon
-        cropped_data, cropped_transform = mask(img, [polygon], crop=True)
-
-        # Update the metadata for the cropped TIF
-        cropped_meta = img.meta.copy()
-        cropped_meta.update({"driver": "GTiff",
-                            "height": cropped_data.shape[1],
-                            "width": cropped_data.shape[2],
-                            "transform": cropped_transform})
-
-        # Save the cropped TIF file with a unique name
-        with rasterio.open(output_path, "w", **cropped_meta) as dest:
-            dest.write(cropped_data)
-
-        ##########
-        # make ground truth mask
-
-        # find which ground truth polygons overlap with this 200x200 field
-        intersections = gpd.overlay(self.groundtruth_polygs, polygon, how='intersection')
-
-        # convert image to empty but retaining all metainfo
-        cropped_img = rasterio.open(output_path)
-        cropped_img = cropped_img*0
-        masked_data, _ = mask(cropped_img, [polyg for polyg in intersections.geometry])
-
-        with rasterio.open(gt_path, "w", **cropped_meta) as dest:
+        with rasterio.open(gt_path, "w", **cropped_img.meta.copy()) as dest:
             dest.write(masked_data)
+
+    def make_neg_ground_truth(self, img_crop_path, gt_path):
+
+        # use previously created cropped image
+        cropped_img = rasterio.open(img_crop_path)
+        empty_mask = cropped_img.read() * 0 
+
+        with rasterio.open(gt_path, "w", **cropped_img.meta.copy()) as dest:
+            dest.write(empty_mask)
 
 
     def crop_palsa_imgs(self, palsa_rutor):
@@ -275,18 +251,29 @@ class Crop_tif_varsize():
         cropped_tifs_percentages = {}
         # Iterate over each polygon in the GeoDataFrame
         for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry):
-            hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_crop_{idx}.tif'
-            RGB_path = f'{self.destination_path}/rgb/{self.hs_name_code}_crop_{idx}.tif'
-            DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_crop_{idx}.tif'
-            gt_path = f'{self.destination_path}/groundtruth_mask/{self.hs_name_code}_crop_{idx}.tif'
 
-            # crop hillshade and RGB according to same polygons
-            self.make_crop(self.hs_img, polygon, hs_path) 
-            self.make_crop(self.RGB_img, polygon, RGB_path)
-            self.make_crop(self.DEM_img, polygon, DEM_path)
-            self.make_ground_truth(self.DEM_img, polygon, DEM_path, gt_path)
-            # Write the corresponding percentage to a dictionary as label 
-            cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}"] = percentage
+            # see if there is an overlap with ground truths:
+            polyg_df = palsa_rutor.loc[[idx]]
+            intersections = gpd.overlay(self.groundtruth_polygs, polyg_df, how='intersection')
+
+            # only crop if theres a ground truth overlap
+            if not intersections.empty:
+
+                hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_crop_{idx}.tif'
+                RGB_path = f'{self.destination_path}/rgb/{self.hs_name_code}_crop_{idx}.tif'
+                DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_crop_{idx}.tif'
+                gt_path = f'{self.destination_path}/groundtruth_mask/{self.hs_name_code}_crop_{idx}.tif'
+
+                # crop hillshade and RGB according to same polygons
+                self.make_crop(self.hs_img, polygon, hs_path) 
+                self.make_crop(self.RGB_img, polygon, RGB_path)
+                self.make_crop(self.DEM_img, polygon, DEM_path)
+
+                # generate ground truth
+                self.make_ground_truth(intersections, hs_path, gt_path)
+                
+                # Write the corresponding percentage to a dictionary as label 
+                cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}"] = percentage
 
         return cropped_tifs_percentages
 
@@ -328,7 +315,9 @@ class Crop_tif_varsize():
             self.make_crop(self.hs_img, polygon, hs_path) 
             self.make_crop(self.RGB_img, polygon, RGB_path)
             self.make_crop(self.DEM_img, polygon, DEM_path)
-            self.make_ground_truth(self.DEM_img, polygon, DEM_path, gt_path)
+
+            # make negative ground truth 
+            self.make_neg_ground_truth(hs_path, gt_path)
 
             # Write the corresponding percentage to a dictionary as label 
             cropped_tifs_percentages[f"{self.hs_name_code}_negcrop_{idx}"] = 0
