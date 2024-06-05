@@ -68,29 +68,27 @@ logger.info('Starting to generate training samples from TIFs..')
 labels = {}
 not_found = []
 for idx, hs_img_name in enumerate(hillshade_filenames):
+    
     # grab corresponding RGB image (matching the hillshade)
-    try:
-        RGB_tif_name = get_RGB_match(hs_img_name, RGB_tif_dir) 
-        RGB_img_name_code = RGB_tif_name.split('.')[0]
-        RGB_img_path = os.path.join(RGB_tif_dir, RGB_tif_name)
+    RGB_tif_name = get_RGB_match(hs_img_name, RGB_tif_dir) 
+    RGB_img_name_code = RGB_tif_name.split('.')[0]
+    RGB_img_path = os.path.join(RGB_tif_dir, RGB_tif_name)
 
-        hs_img_name_code = hs_img_name.split('.')[0]
-        hs_img_path = os.path.join(hillshade_tif_dir, hs_img_name)
+    hs_img_name_code = hs_img_name.split('.')[0]
+    hs_img_path = os.path.join(hillshade_tif_dir, hs_img_name)
 
-        DEM_img_name_code = hs_img_name.split('.')[0]
-        DEM_img_path = os.path.join(DEM_tif_dir, hs_img_name)
+    DEM_img_name_code = hs_img_name.split('.')[0]
+    DEM_img_path = os.path.join(DEM_tif_dir, hs_img_name)
 
-        cropping = Crop_tif_varsize(RGB_img_name_code, RGB_img_path, hs_img_name_code, 
-                                    hs_img_path, DEM_img_name_code, DEM_img_path, 
-                                    palsa_shapefile_path, save_crops_dir, dims, logger, groundtruth_shapefile_path)
-        
-        # Run the cropping script
-        new_labels = cropping.forward()
-        labels = labels | new_labels
-        logger.info(f'Generated training samples from image {idx+1}/{len(hillshade_filenames)}')
-    except: 
-        logger.info(f'RGB or DEM match for {hs_img_name} not found')
-        not_found.append(hs_img_name)
+    cropping = Crop_tif_varsize(RGB_img_name_code, RGB_img_path, hs_img_name_code, 
+                                hs_img_path, DEM_img_name_code, DEM_img_path, 
+                                palsa_shapefile_path, save_crops_dir, dims, logger, groundtruth_shapefile_path)
+    
+    # Run the cropping script
+    new_labels = cropping.forward()
+    labels = labels | new_labels
+    logger.info(f'Generated training samples from image {idx+1}/{len(hillshade_filenames)}')
+
 
 print(f'The following images had no rgb match: \n {not_found}')
 print(f'number of images where script failed: \n {len(not_found)}')
