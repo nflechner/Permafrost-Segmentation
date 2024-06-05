@@ -309,7 +309,7 @@ class Crop_tif_varsize():
             hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_negcrop_{idx}.tif'
             RGB_path = f'{self.destination_path}/rgb/{self.hs_name_code}_negcrop_{idx}.tif'
             DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_negcrop_{idx}.tif'
-            gt_path = f'{self.destination_path}/groundtruth_mask/{self.hs_name_code}_crop_{idx}.tif'
+            gt_path = f'{self.destination_path}/groundtruth_mask/{self.hs_name_code}_negcrop_{idx}.tif'
 
             # crop hillshade and RGB according to same polygons
             self.make_crop(self.hs_img, polygon, hs_path) 
