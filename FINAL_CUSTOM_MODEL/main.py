@@ -12,7 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 from PIL import Image
 import rasterio
 import numpy as np
-from utils import ImageDataset, SaveFeatures, filter_dataset, imshow_transform
+from utils import ImageDataset, TestSet, filter_dataset, imshow_transform
 from custom_model import model_4D
 from torch.autograd import Variable
 from skimage.transform import resize
@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import torch.optim.lr_scheduler as lr_scheduler
 import torchmetrics
 import json
-from pseudomask import Pseudomasks
+from pseudomask import Pseudomasks, PseudomaskEval
 
 ##################
 ## load configs ##
@@ -37,6 +37,7 @@ config_paths = configs.get('paths', {})
 
 # assign paths
 palsa_shapefile = config_paths.get('palsa_shapefile') 
+testset_dir = config_paths.get('testset') 
 parent_dir = config_paths.get('data') 
 rgb_dir = os.path.join(parent_dir, 'rgb')
 hs_dir = os.path.join(parent_dir, 'hs')
@@ -213,19 +214,12 @@ run.log_artifact(artifact)
 # generate CAMs #
 #################
 
-# df1, df2 = filter_dataset(labels_file, 
-#                 augment=False, 
-#                 min_palsa_positive_samples=1,
-#                 low_pals_in_val=False,
-#                 n_samples=200)
-
-# combined_df = df1.append(df2)
-# testing_dataset =  ImageDataset(depth_dir, rgb_dir, combined_df, 200, normalize=False)
-
-test_loader = DataLoader(val_dataset, batch_size=1, shuffle=True, num_workers=1)
+test_set = TestSet(depth_layer, testset_dir, normalize)
+test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
+eval = PseudomaskEval()
 
 pseudomask_generator = Pseudomasks(
-                            cam_threshold = 0.5, 
+                            cam_threshold_factor = 0.5, 
                             overlap_threshold= 0.5,
                             snic_seeds = 100,
                             snic_compactness = 10)
@@ -233,14 +227,16 @@ pseudomask_generator = Pseudomasks(
 pseudomask_generator.model_from_dict(best_model)
 
 for i in range(5):
-    im, lab = next(iter(test_loader))
-    if not lab == 0:
-        pseudomask= pseudomask_generator.forward()
-        # ALSO PLOT GROUND TRUTH ABOVE (GIVE AS LABEL)
+    im, lab, gt_mask = next(iter(test_loader))
 
-        ####
-        # ADD COMPARISON OF PSEUDOMASK AND GROUND TRUTH HERE. 
-        ####
+    # currently not yet comparing negative samples 
+    if not lab == 0:
+        pseudomask= pseudomask_generator.forward(im, gt_mask)
+
+        # calculate metrics to evaluate model on test set
+        generated_mask = torch.Tensor(pseudomask).float().view(400,400)
+        groundtruth_mask = torch.Tensor(gt_mask).float().view(400,400)
+        metrics = eval.calc_metrics(generated_mask, groundtruth_mask)
 
 
 ##############

@@ -1,6 +1,7 @@
 {
     "paths": {
         "data": "/home/nadjaflechner/Palsa_data/generated_datasets/FINAL_200m_dataset/",
+        "testset": "/home/nadjaflechner/Palsa_data/generated_datasets/FINAL_200m_groundtruths",
         "palsa_shapefile": "/home/nadjaflechner/Palsa_data/Palsa_rutor/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp"
     },
     "hyperparams": {
