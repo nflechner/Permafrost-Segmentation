@@ -1,37 +1,58 @@
-import os
-import pandas as pd
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-from PIL import Image
-import rasterio
 import numpy as np
 import matplotlib.pyplot as plt
-from torchmetrics import Accuracy
-from utils import ImageDataset, SaveFeatures, filter_dataset, imshow_transform
+from utils import SaveFeatures
 from cnn_classifier import model_4D
 from torch.autograd import Variable
-from skimage.transform import resize
-from skimage.io import imshow
 import wandb
-import torch.optim.lr_scheduler as lr_scheduler
-from skimage.segmentation import mark_boundaries, find_boundaries
+from skimage.segmentation import mark_boundaries
 from pysnic.algorithms.snic import snic
 from torchmetrics.classification import MulticlassJaccardIndex
 
 
 class Pseudomasks():
-    def __init__(self, test_loader, cam_threshold_factor, 
-                 overlap_threshold, snic_seeds, snic_compactness):
+    def __init__(self, test_loader, cam_threshold_factor, overlap_threshold, 
+                 snic_seeds, snic_compactness, finetuned):
 
         self.test_loader = test_loader
-        self.cam_threshold_factor = cam_threshold_factor, 
-        self.overlap_threshold= overlap_threshold,
-        self.snic_seeds = snic_seeds,
+        self.cam_threshold_factor = cam_threshold_factor 
+        self.overlap_threshold= overlap_threshold
+        self.snic_seeds = snic_seeds
         self.snic_compactness = snic_compactness
+        self.finetuned = finetuned
         self.model = None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    def init_model(self):
+        model = model_4D()
+        if self.finetuned:
+            model.classifier = nn.Sequential(
+                nn.Conv2d(2, 2, kernel_size=3, padding=1),
+                nn.BatchNorm2d(2),
+                nn.ReLU(inplace=True), 
+                nn.Conv2d(2, 2, kernel_size=3, padding=1))
+        model.to(self.device)
+        return model
+
+    def model_from_artifact(self, run_id, artifact):
+        # if loading the model from a wandb artifact
+
+        run = wandb.init(project= 'VGG_CAMs', id= run_id, resume = 'must')
+        artifact = run.use_artifact(f'nadjaflechner/VGG_CAMs/model:{artifact}', type='model')
+        artifact_dir = artifact.download()
+        state_dict = torch.load(f"{artifact_dir}/model.pth")
+        model = self.init_model()
+        model.load_state_dict(state_dict)
+        model.eval()
+        self.model = model
+            
+    def model_from_dict(self, state_dict):
+        # if loading the model from a wandb artifact
+        model = self.init_model()
+        model.load_state_dict(state_dict)
+        model.eval()
+        self.model = model
 
     def test_loop(self, test_loader):
         
@@ -41,8 +62,8 @@ class Pseudomasks():
             if not lab == 0:  # currently not yet comparing negative samples 
                 pseudomask = self.generate_mask(im, gt_mask, save_plot=True)
                 # calculate metrics to evaluate model on test set
-                generated_mask = torch.Tensor(pseudomask).int().view(400,400)
-                groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400)
+                generated_mask = torch.Tensor(pseudomask).int().view(400,400).to(self.device)
+                groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400).to(self.device)
                 metrics = self.calc_metrics(generated_mask, groundtruth_mask)
                 running_jaccard += metrics
         wandb.log({"test_mean_jaccard": metrics / len(test_loader.dataset)})
@@ -50,7 +71,9 @@ class Pseudomasks():
     def generate_mask(self, im, gt, save_plot: bool):
 
         #get the last convolution
-        sf = SaveFeatures(self.model.features[-4])
+        if not self.finetuned:
+            sf = SaveFeatures(self.model.features[-4])
+        else: sf = SaveFeatures(self.model.classifier[-1])
         im = Variable(im).to(self.device)
         outputs = self.model(im).to(self.device)
 
@@ -62,12 +85,12 @@ class Pseudomasks():
                                             arr[:,1,:,:].unsqueeze(1), 
                                             scale_factor = im.shape[3]/arr.shape[3], 
                                             mode='bilinear').cpu().detach()
-        activation_threshold = (pals_acts.mean() + torch.std(pals_acts)) * self.cam_threshold_factor
+        activation_threshold = (pals_acts.mean() + pals_acts.std()) * torch.tensor(self.cam_threshold_factor)
         pixels_activated = torch.where(torch.Tensor(pals_acts) > activation_threshold.cpu(), 1, 0).squeeze(0).permute(1,2,0).numpy()
 
         # Plot image with CAM
         cpu_img = im.squeeze().cpu().detach().permute(1,2,0).long().numpy()
-        superpixels = np.array(snic(cpu_img, self.snic_seeds, self.snic_compactness)[0])
+        superpixels = np.array(snic(cpu_img, int(self.snic_seeds), self.snic_compactness)[0])
         pseudomask = self.create_superpixel_mask(superpixels, pixels_activated.squeeze(), threshold=self.overlap_threshold)
 
         if save_plot: self.generate_plot(cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt)
@@ -116,30 +139,9 @@ class Pseudomasks():
 
     def calc_metrics(self, pseudomask, gt):
         # Jaccard index (aka Intersection over Union - IoU) is the most common semantic seg metric
-        metric = MulticlassJaccardIndex(num_classes=2)
+        metric = MulticlassJaccardIndex(num_classes=2).to(self.device)
         jaccard = metric(pseudomask, gt)
         return jaccard
-
-    def model_from_artifact(self, run_id, artifact):
-        # if loading the model from a wandb artifact
-
-        run = wandb.init(project= 'VGG_CAMs', id= run_id, resume = 'must')
-        artifact = run.use_artifact(f'nadjaflechner/VGG_CAMs/model:{artifact}', type='model')
-        artifact_dir = artifact.download()
-        state_dict = torch.load(f"{artifact_dir}/model.pth")
-        model = model_4D()
-        model.load_state_dict(state_dict)
-        model.to(self.device)
-        model.eval()
-        self.model = model
-            
-    def model_from_dict(self, state_dict):
-        # if loading the model from a wandb artifact
-        model = model_4D()
-        model.load_state_dict(state_dict)
-        model.to(self.device)
-        model.eval()
-        self.model = model
 
     def create_superpixel_mask(self, superpixels, binary_mask, threshold):
         # Get the unique superpixel labels

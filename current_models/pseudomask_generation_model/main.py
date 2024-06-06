@@ -18,7 +18,8 @@ from finetune import FinetuneLoop
 ## load configs ##
 ##################
 
-config_path = os.path.join(os.getcwd(), 'configs.json')
+# config_path = os.path.join(os.getcwd(), 'configs.json')
+config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
 with open(config_path, 'r') as config_file:
     configs = json.load(config_file)
 
@@ -57,16 +58,14 @@ depth_layer = config_data.get('depth_layer')
 # load pseudomasks configs dictionary
 config_pseudomasks = configs.get('pseudomasks', {}) 
 # assign pseudomasks configs
-cam_threshold_factor = config_data.get('cam_threshold_factor') 
-overlap_threshold = config_data.get('overlap_threshold')
-snic_seeds = config_data.get('snic_seeds')
-snic_compactness = config_data.get('snic_compactness')
+cam_threshold_factor = config_pseudomasks.get('cam_threshold_factor') 
+overlap_threshold = config_pseudomasks.get('overlap_threshold')
+snic_seeds = config_pseudomasks.get('snic_seeds')
+snic_compactness = config_pseudomasks.get('snic_compactness')
 
 ##########################
 # log hyperparams to w&b #
 ##########################
-
-wandb_tags = [str(tag) for tag in [low_pals_in_val, augment, normalize, depth_layer] if tag]
 
 run = wandb.init(
     # Set the project where this run will be logged
@@ -85,9 +84,12 @@ run = wandb.init(
         "augment": augment,
         "normalize": normalize,
         "low_pals_in_val": low_pals_in_val,
-        "depth_layer": depth_layer
-            },
-    tags= wandb_tags
+        "depth_layer": depth_layer,
+        "cam_threshold_factor": cam_threshold_factor,
+        "overlap_threshold": overlap_threshold,
+        "snic_seeds": snic_seeds,
+        "snic_compactness": snic_compactness
+        }
 )
 
 #########################
@@ -147,13 +149,14 @@ if finetune:
 # evaluate model #
 ##################
 
+print('Testing model ...')
 test_set = TestSet(depth_layer, testset_dir, normalize)
 test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
 
 pseudomask_generator = Pseudomasks(test_loader, cam_threshold_factor, overlap_threshold,
-                                    snic_seeds, snic_compactness)
+                                    snic_seeds, snic_compactness, finetuned = finetune)
 pseudomask_generator.model_from_dict(best_model)
-pseudomask_generator.test_loop()
+pseudomask_generator.test_loop(test_loader)
 
 
 ##############
