@@ -18,14 +18,16 @@ import wandb
 import torch.optim.lr_scheduler as lr_scheduler
 from skimage.segmentation import mark_boundaries, find_boundaries
 from pysnic.algorithms.snic import snic
+from torchmetrics.classification import MulticlassJaccardIndex
 
 class PseudomaskEval():
+    # Jaccard index (aka Intersection over Union - IoU) is the most common semantic seg metric
     def __init__(self):
-        self.MSE = nn.MSELoss()
+        self.jaccard = MulticlassJaccardIndex(num_classes=2)
     
     def calc_metrics(self, pseudomask, gt):
-        MSE = self.MSE(pseudomask, gt)
-        return MSE
+        jaccard = self.jaccard(pseudomask, gt)
+        return jaccard
 
 class Pseudomasks():
     def __init__(self, cam_threshold_factor, overlap_threshold, snic_seeds, snic_compactness):
