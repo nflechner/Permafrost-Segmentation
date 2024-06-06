@@ -18,8 +18,10 @@ from finetune import FinetuneLoop
 ## load configs ##
 ##################
 
-# config_path = os.path.join(os.getcwd(), 'configs.json')
-config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
+# use this path when using vs code debugger.
+# config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
+
+config_path = os.path.join(os.getcwd(), 'configs.json')
 with open(config_path, 'r') as config_file:
     configs = json.load(config_file)
 
