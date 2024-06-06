@@ -25,6 +25,7 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
 
     max_val_F1 = 0
 
+    print('Training model ...')
     for epoch in range(num_epochs):
         print('EPOCH: ',epoch+1)
 
