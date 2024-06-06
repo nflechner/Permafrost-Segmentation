@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torchmetrics import Accuracy
 from utils import ImageDataset, SaveFeatures, filter_dataset, imshow_transform
-from custom_model import model_4D
+from cnn_classifier import model_4D
 from torch.autograd import Variable
 from skimage.transform import resize
 from skimage.io import imshow
@@ -20,26 +20,14 @@ from skimage.segmentation import mark_boundaries, find_boundaries
 from pysnic.algorithms.snic import snic
 from torchmetrics.classification import MulticlassJaccardIndex
 
-class PseudomaskEval():
-    # Jaccard index (aka Intersection over Union - IoU) is the most common semantic seg metric
-    def __init__(self):
-        self.jaccard = MulticlassJaccardIndex(num_classes=2)
-    
-    def calc_metrics(self, pseudomask, gt):
-        jaccard = self.jaccard(pseudomask, gt)
-        return jaccard
 
 class Pseudomasks():
-    def __init__(self, cam_threshold_factor, overlap_threshold, snic_seeds, snic_compactness):
+    def __init__(self):
 
-        self.cam_threshold_factor = cam_threshold_factor
-        self.overlap_threshold = overlap_threshold
-        self.snic_seeds = snic_seeds
-        self.snic_compactness = snic_compactness
         self.model = None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    def forward(self, im, gt):
+    def generate_mask(self, im, gt, save_plot: bool, cam_threshold_factor, overlap_threshold, snic_seeds, snic_compactness):
 
         #get the last convolution
         sf = SaveFeatures(self.model.features[-4])
@@ -54,17 +42,21 @@ class Pseudomasks():
                                             arr[:,1,:,:].unsqueeze(1), 
                                             scale_factor = im.shape[3]/arr.shape[3], 
                                             mode='bilinear').cpu().detach()
-        activation_threshold = (pals_acts.mean() + torch.std(pals_acts)) * self.cam_threshold_factor
+        activation_threshold = (pals_acts.mean() + torch.std(pals_acts)) * cam_threshold_factor
         pixels_activated = torch.where(torch.Tensor(pals_acts) > activation_threshold.cpu(), 1, 0).squeeze(0).permute(1,2,0).numpy()
 
         # Plot image with CAM
         cpu_img = im.squeeze().cpu().detach().permute(1,2,0).long().numpy()
-        superpixels = np.array(snic(cpu_img, self.snic_seeds, self.snic_compactness)[0])
-        pseudomask = self.create_superpixel_mask(superpixels, pixels_activated.squeeze(), threshold=self.overlap_threshold)
+        superpixels = np.array(snic(cpu_img, snic_seeds, snic_compactness)[0])
+        pseudomask = self.create_superpixel_mask(superpixels, pixels_activated.squeeze(), threshold=overlap_threshold)
 
-        ############
-        # Plotting #
-        ############
+        if save_plot: self.generate_plot(cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt)
+
+        return pseudomask
+
+    def generate_plot(self, cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt):
+
+        # Plotting fucntion to visualize the pseudomask generation process (and intermediates)
 
         fig, (ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(1,6, figsize = (30,6))
 
@@ -101,8 +93,12 @@ class Pseudomasks():
 
         plt.tight_layout()
         wandb.log({'pseudomask': fig})
-        return pseudomask
 
+    def calc_metrics(self, pseudomask, gt):
+        # Jaccard index (aka Intersection over Union - IoU) is the most common semantic seg metric
+        metric = MulticlassJaccardIndex(num_classes=2)
+        jaccard = metric(pseudomask, gt)
+        return jaccard
 
     def model_from_artifact(self, run_id, artifact):
         # if loading the model from a wandb artifact
