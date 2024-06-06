@@ -234,8 +234,8 @@ for i in range(5):
         pseudomask= pseudomask_generator.forward(im, gt_mask)
 
         # calculate metrics to evaluate model on test set
-        generated_mask = torch.Tensor(pseudomask).float().view(400,400)
-        groundtruth_mask = torch.Tensor(gt_mask).float().view(400,400)
+        generated_mask = torch.Tensor(pseudomask).int().view(400,400)
+        groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400)
         metrics = eval.calc_metrics(generated_mask, groundtruth_mask)
 
 
