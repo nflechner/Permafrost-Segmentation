@@ -103,9 +103,10 @@ class ImageDataset(Dataset):
                 pass
 
         label = self.labels_df.iloc[idx, 0]
-        label = 1 if label > 0 else 0
+        binary_label = 1 if label > 0 else 0
+        perc_label = label/100
 
-        return combined_tensor, label
+        return combined_tensor, binary_label, perc_label
     
 
 class TestSet(Dataset):
@@ -162,7 +163,8 @@ class TestSet(Dataset):
                 pass
 
         label = self.labels_df.iloc[idx, 0]
-        label = 1 if label > 0 else 0
+        binary_label = 1 if label > 0 else 0
+        perc_label = label/100
 
         # grab ground truth mask
         gt_img_path = os.path.join(self.groundtruth_dir, f"{img_name}.tif")
@@ -174,7 +176,7 @@ class TestSet(Dataset):
         gt_image_tensor = gt_image_tensor.float()
         gt_upsampled_tensor = bilinear(gt_image_tensor.unsqueeze(0)).squeeze(0)  # OUTPUT is np array (1,200,200)
 
-        return combined_tensor, label, gt_upsampled_tensor
+        return combined_tensor, binary_label, perc_label, gt_upsampled_tensor
 
 #https://www.fast.ai/
 #fastai code snippet
