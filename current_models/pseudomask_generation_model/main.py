@@ -4,27 +4,15 @@
 
 import torch
 import os
-import pandas as pd
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-from PIL import Image
-import rasterio
-import numpy as np
-from utils import ImageDataset, TestSet, filter_dataset, imshow_transform
+from torch.utils.data import DataLoader
+from utils import ImageDataset, TestSet, filter_dataset
 from cnn_classifier import model_4D
-from torch.autograd import Variable
-from skimage.transform import resize
-from skimage.io import imshow
 import wandb
-import matplotlib.pyplot as plt 
-import torch.optim.lr_scheduler as lr_scheduler
-import torchmetrics
 import json
 from pseudomask import Pseudomasks
-from train_classifier import ClassifierTrainLoop
-from finetune_classifier import FinetuneLoop
+from train import ClassifierTrainLoop
+from finetune import FinetuneLoop
 
 ##################
 ## load configs ##
@@ -36,7 +24,6 @@ with open(config_path, 'r') as config_file:
 
 # load paths configs dictionary
 config_paths = configs.get('paths', {}) 
-
 # assign paths
 palsa_shapefile = config_paths.get('palsa_shapefile') 
 testset_dir = config_paths.get('testset') 
@@ -48,7 +35,6 @@ labels_file = os.path.join(parent_dir, 'palsa_labels.csv')
 
 # load hyperparams configs dictionary
 config_hyperparams = configs.get('hyperparams', {}) 
-
 # assign hyperparams
 n_samples = config_hyperparams.get('n_samples')
 batch_size = config_hyperparams.get('batch_size')
@@ -60,7 +46,6 @@ finetune = config_hyperparams.get('finetune')
 
 # load data configs dictionary
 config_data = configs.get('data', {}) 
-
 # assign data configs
 im_size = config_data.get('im_size')
 min_palsa_positive_samples = config_data.get('min_palsa_positive_samples')
@@ -68,6 +53,14 @@ low_pals_in_val = config_data.get('low_pals_in_val')
 augment = config_data.get('augment')
 normalize = config_data.get('normalize')
 depth_layer = config_data.get('depth_layer')
+
+# load pseudomasks configs dictionary
+config_pseudomasks = configs.get('pseudomasks', {}) 
+# assign pseudomasks configs
+cam_threshold_factor = config_data.get('cam_threshold_factor') 
+overlap_threshold = config_data.get('overlap_threshold')
+snic_seeds = config_data.get('snic_seeds')
+snic_compactness = config_data.get('snic_compactness')
 
 ##########################
 # log hyperparams to w&b #
@@ -140,11 +133,11 @@ run.log_artifact(artifact)
 if finetune:
     # use trained model from above
     model.load_state_dict(best_model)
-    # finetune pretrained model
-    finetuned_model = FinetuneLoop(model, train_loader, val_loader, 
+    # finetune pretrained model (overwrite best_model to evaluate)
+    best_model = FinetuneLoop(model, train_loader, val_loader, 
                                  lr, weight_decay, lr_gamma, num_epochs)
     # after all epochs, save the best model as an artifact to wandb
-    torch.save(finetuned_model, '/home/nadjaflechner/models/model.pth')
+    torch.save(best_model, '/home/nadjaflechner/models/model.pth')
     artifact = wandb.Artifact('finetuned_model', type='model')
     artifact.add_file('/home/nadjaflechner/models/model.pth')
     run.log_artifact(artifact)
@@ -157,26 +150,10 @@ if finetune:
 test_set = TestSet(depth_layer, testset_dir, normalize)
 test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
 
-pseudomask_generator = Pseudomasks()
+pseudomask_generator = Pseudomasks(test_loader, cam_threshold_factor, overlap_threshold,
+                                    snic_seeds, snic_compactness)
 pseudomask_generator.model_from_dict(best_model)
-
-for i in range(len(test_loader.dataset)):
-    im, lab, perc_label, gt_mask = next(iter(test_loader))
-
-    # currently not yet comparing negative samples 
-    if not lab == 0:
-        pseudomask = pseudomask_generator.generate_mask(
-            im, gt_mask, 
-            save_plot = True,
-            cam_threshold_factor = 0.5, 
-            overlap_threshold= 0.5,
-            snic_seeds = 100,
-            snic_compactness = 10)
-        
-        # calculate metrics to evaluate model on test set
-        generated_mask = torch.Tensor(pseudomask).int().view(400,400)
-        groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400)
-        metrics = pseudomask_generator.calc_metrics(generated_mask, groundtruth_mask)
+pseudomask_generator.test_loop()
 
 
 ##############

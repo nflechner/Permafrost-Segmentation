@@ -20,5 +20,11 @@
         "augment": false,
         "normalize": false,
         "depth_layer": "hs"
+    },
+    "pseudomasks": {
+        "cam_threshold_factor": 0.5, 
+        "overlap_threshold": 0.5,
+        "snic_seeds": 100,
+        "snic_compactness": 10
     }
 }

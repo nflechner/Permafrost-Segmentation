@@ -22,12 +22,32 @@ from torchmetrics.classification import MulticlassJaccardIndex
 
 
 class Pseudomasks():
-    def __init__(self):
+    def __init__(self, test_loader, cam_threshold_factor, 
+                 overlap_threshold, snic_seeds, snic_compactness):
 
+        self.test_loader = test_loader
+        self.cam_threshold_factor = cam_threshold_factor, 
+        self.overlap_threshold= overlap_threshold,
+        self.snic_seeds = snic_seeds,
+        self.snic_compactness = snic_compactness
         self.model = None
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    def generate_mask(self, im, gt, save_plot: bool, cam_threshold_factor, overlap_threshold, snic_seeds, snic_compactness):
+    def test_loop(self, test_loader):
+        
+        running_jaccard = 0
+        for i in range(len(test_loader.dataset)):
+            im, lab, perc_label, gt_mask = next(iter(test_loader))
+            if not lab == 0:  # currently not yet comparing negative samples 
+                pseudomask = self.generate_mask(im, gt_mask, save_plot=True)
+                # calculate metrics to evaluate model on test set
+                generated_mask = torch.Tensor(pseudomask).int().view(400,400)
+                groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400)
+                metrics = self.calc_metrics(generated_mask, groundtruth_mask)
+                running_jaccard += metrics
+        wandb.log({"test_mean_jaccard": metrics / len(test_loader.dataset)})
+
+    def generate_mask(self, im, gt, save_plot: bool):
 
         #get the last convolution
         sf = SaveFeatures(self.model.features[-4])
@@ -42,13 +62,13 @@ class Pseudomasks():
                                             arr[:,1,:,:].unsqueeze(1), 
                                             scale_factor = im.shape[3]/arr.shape[3], 
                                             mode='bilinear').cpu().detach()
-        activation_threshold = (pals_acts.mean() + torch.std(pals_acts)) * cam_threshold_factor
+        activation_threshold = (pals_acts.mean() + torch.std(pals_acts)) * self.cam_threshold_factor
         pixels_activated = torch.where(torch.Tensor(pals_acts) > activation_threshold.cpu(), 1, 0).squeeze(0).permute(1,2,0).numpy()
 
         # Plot image with CAM
         cpu_img = im.squeeze().cpu().detach().permute(1,2,0).long().numpy()
-        superpixels = np.array(snic(cpu_img, snic_seeds, snic_compactness)[0])
-        pseudomask = self.create_superpixel_mask(superpixels, pixels_activated.squeeze(), threshold=overlap_threshold)
+        superpixels = np.array(snic(cpu_img, self.snic_seeds, self.snic_compactness)[0])
+        pseudomask = self.create_superpixel_mask(superpixels, pixels_activated.squeeze(), threshold=self.overlap_threshold)
 
         if save_plot: self.generate_plot(cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt)
 

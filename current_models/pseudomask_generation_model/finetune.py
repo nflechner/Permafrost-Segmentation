@@ -18,6 +18,19 @@ def FinetuneLoop(model, train_loader, val_loader, lr, weight_decay, lr_gamma, nu
     scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=lr_gamma)
     loss_function = nn.MSELoss()
 
+    ############################
+    # redefine model to finetune
+    ############################
+
+    model.classifier = nn.Sequential(
+            nn.Conv2d(2, 2, kernel_size=3, padding=1),
+            nn.BatchNorm2d(2),
+            nn.ReLU(inplace=True), 
+            nn.Conv2d(2, 2, kernel_size=3, padding=1))
+    model.to(device)
+    ########## DO I WANT TO FREEZE LAYERS???
+
+
     #######################
     # model training loop #
     #######################
