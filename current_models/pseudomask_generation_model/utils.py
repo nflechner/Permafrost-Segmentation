@@ -1,21 +1,17 @@
-import torch
 import os
+
+import numpy as np
 import pandas as pd
+import rasterio
 import torch
 import torch.nn as nn
-import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
-from PIL import Image
-import rasterio
-import numpy as np
-import matplotlib.pyplot as plt
-from torch import Tensor
+from torch.utils.data import Dataset
 from torchvision import transforms
 
-def filter_dataset(labels_file, augment, 
-                         min_palsa_positive_samples, 
-                         low_pals_in_val, n_samples):
-    
+
+def filter_dataset(
+    labels_file, augment, min_palsa_positive_samples, low_pals_in_val, n_samples):
+
     n_train = int(round(n_samples*0.8))
     n_val = int(round(n_samples*0.2))
 
@@ -30,9 +26,9 @@ def filter_dataset(labels_file, augment,
     if min_palsa_positive_samples > 0:
 
         # find indices of samples with 0<x<threshold palsa
-        drop_range = labels_df[ 
-            (labels_df['palsa_percentage'] > 0) 
-            & (labels_df['palsa_percentage'] <= min_palsa_positive_samples) ].index
+        drop_range = labels_df[
+            (labels_df['palsa_percentage'] > 0)
+            & (labels_df['palsa_percentage'] <= min_palsa_positive_samples)].index
 
         # remove low palsa images from train set
         train_df = labels_df.drop(drop_range).sample(n_train)
@@ -50,8 +46,9 @@ def filter_dataset(labels_file, augment,
     elif min_palsa_positive_samples == 0:
         train_df = labels_df.sample(n_train)
         val_df = labels_df.drop(train_df.index).sample(n_val)
-    
+
     return train_df, val_df
+
 
 class ImageDataset(Dataset):
     def __init__(self, depth_dir, RGB_dir, labels_df, im_size, normalize):
@@ -82,7 +79,7 @@ class ImageDataset(Dataset):
         hs_image_tensor = torch.from_numpy(hs_image_array)
         hs_image_tensor = hs_image_tensor.float()
         bilinear = nn.Upsample(size=self.im_size*2, mode='bilinear')
-        hs_upsampled_tensor = bilinear(hs_image_tensor.unsqueeze(0)).squeeze(0) 
+        hs_upsampled_tensor = bilinear(hs_image_tensor.unsqueeze(0)).squeeze(0)
 
         # converting RGB to tensor
         RGB_image_array = np.array(RGB_img)
@@ -91,23 +88,22 @@ class ImageDataset(Dataset):
 
         combined_tensor = torch.concatenate((RGB_image_tensor, hs_upsampled_tensor))
 
-        if self.normalize: 
+        if self.normalize:
             # use dataset wide calculated means and standard deviations
             if str(self.depth_dir).endswith('hs'):
                 transforms.Normalize(mean=[74.90, 85.26, 80.06,179.18],
-                            std=[15.05, 13.88, 12.01,10.65]) 
+                                     std=[15.05, 13.88, 12.01,10.65])
                 pass
             if str(self.depth_dir).endswith('dem'):
                 transforms.Normalize(mean=[74.90, 85.26, 80.06,608.95],
-                            std=[15.05, 13.88, 12.01, 2.30])
+                                     std=[15.05, 13.88, 12.01, 2.30])
                 pass
 
         label = self.labels_df.iloc[idx, 0]
         binary_label = 1 if label > 0 else 0
         perc_label = label/100
-
         return combined_tensor, binary_label, perc_label
-    
+
 
 class TestSet(Dataset):
     def __init__(self, depth_layer, gt_dir, normalize):
@@ -142,7 +138,7 @@ class TestSet(Dataset):
         hs_image_tensor = torch.from_numpy(hs_image_array)
         hs_image_tensor = hs_image_tensor.float()
         bilinear = nn.Upsample(size=self.im_size*2, mode='bilinear')
-        hs_upsampled_tensor = bilinear(hs_image_tensor.unsqueeze(0)).squeeze(0) 
+        hs_upsampled_tensor = bilinear(hs_image_tensor.unsqueeze(0)).squeeze(0)
 
         # converting RGB to tensor
         RGB_image_array = np.array(RGB_img)
@@ -151,15 +147,15 @@ class TestSet(Dataset):
 
         combined_tensor = torch.concatenate((RGB_image_tensor, hs_upsampled_tensor))
 
-        if self.normalize: 
+        if self.normalize:
             # use dataset wide calculated means and standard deviations
             if str(self.depth_dir).endswith('hs'):
                 transforms.Normalize(mean=[74.90, 85.26, 80.06,179.18],
-                            std=[15.05, 13.88, 12.01,10.65]) 
+                                     std=[15.05, 13.88, 12.01,10.65])
                 pass
             if str(self.depth_dir).endswith('dem'):
                 transforms.Normalize(mean=[74.90, 85.26, 80.06,608.95],
-                            std=[15.05, 13.88, 12.01, 2.30])
+                                     std=[15.05, 13.88, 12.01, 2.30])
                 pass
 
         label = self.labels_df.iloc[idx, 0]
@@ -170,7 +166,7 @@ class TestSet(Dataset):
         gt_img_path = os.path.join(self.groundtruth_dir, f"{img_name}.tif")
         with rasterio.open(gt_img_path) as gt_src:
             gt_mask = gt_src.read()
-            
+
         gt_image_array = np.array(gt_mask)
         gt_image_tensor = torch.from_numpy(gt_image_array)
         gt_image_tensor = gt_image_tensor.float()
@@ -178,8 +174,8 @@ class TestSet(Dataset):
 
         return combined_tensor, binary_label, perc_label, gt_upsampled_tensor
 
-#https://www.fast.ai/
-#fastai code snippet
+# https://www.fast.ai/
+# fastai code snippet
 class SaveFeatures():
     features=None
     def __init__(self,m): self.hook = m.register_forward_hook(self.hook_fn)

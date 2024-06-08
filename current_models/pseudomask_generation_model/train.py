@@ -2,14 +2,15 @@
 # Imports #
 ############
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-from torch.autograd import Variable
-import wandb
 import torch.optim.lr_scheduler as lr_scheduler
 import torchmetrics
+import wandb
+from torch.autograd import Variable
+
 
 def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_gamma, num_epochs):
 
@@ -34,25 +35,25 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
         ############
 
         train_loss = 0
-        train_accuracy = 0 
-        train_Recall = 0 
-        train_F1 = 0 
+        train_accuracy = 0
+        train_Recall = 0
+        train_F1 = 0
 
         model.train()
         train_batch_counter = 0
-        for batch_idx, (images, labels, perc_labels) in enumerate(train_loader):     
+        for batch_idx, (images, labels, perc_labels) in enumerate(train_loader):
             train_batch_counter += 1
 
-            # load images and labels 
-            images = Variable(images).to(device)  
-            labels = Variable(labels.long()).to(device)  
+            # load images and labels
+            images = Variable(images).to(device)
+            labels = Variable(labels.long()).to(device)
 
-            # train batch   
-            outputs = model(images) 
+            # train batch
+            outputs = model(images)
             optimizer.zero_grad()
             loss = loss_function(outputs, labels)
             loss.backward()
-            optimizer.step()  
+            optimizer.step()
 
             # update metrics
             train_loss += loss.item()
@@ -65,21 +66,21 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
         ##############
 
         val_loss = 0
-        val_accuracy = 0 
-        val_Recall = 0 
-        val_F1 = 0 
+        val_accuracy = 0
+        val_Recall = 0
+        val_F1 = 0
 
         running_val_F1 = []
         model.eval()
         val_batch_counter = 0
         with torch.no_grad():
-            for batch_idx, (images, labels, perc_labels) in enumerate(val_loader):  
+            for batch_idx, (images, labels, perc_labels) in enumerate(val_loader):
                 val_batch_counter += 1
 
-                # load images and labels 
-                images = Variable(images).to(device)  
-                labels = Variable(labels.long()).to(device)  
-                outputs = model(images) 
+                # load images and labels
+                images = Variable(images).to(device)
+                labels = Variable(labels.long()).to(device)
+                outputs = model(images)
                 loss = loss_function(outputs, labels)
 
                 # update metrics
@@ -93,7 +94,7 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
                 running_val_F1.append(f1.detach().cpu().numpy())
                 val_F1 = f1
 
-        # lr scheduler step 
+        # lr scheduler step
         scheduler.step()
 
         # update metrics

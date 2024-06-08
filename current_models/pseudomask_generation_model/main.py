@@ -2,17 +2,18 @@
 # Imports #
 ############
 
-import torch
-import os
-import torch
-from torch.utils.data import DataLoader
-from utils import ImageDataset, TestSet, filter_dataset
-from cnn_classifier import model_4D
-import wandb
 import json
+import os
+
+import torch
+import wandb
+from torch.utils.data import DataLoader
+
+from cnn_classifier import model_4D
+from finetune import FinetuneLoop
 from pseudomask import Pseudomasks
 from train import ClassifierTrainLoop
-from finetune import FinetuneLoop
+from utils import ImageDataset, TestSet, filter_dataset
 
 ##################
 ## load configs ##
@@ -26,18 +27,18 @@ with open(config_path, 'r') as config_file:
     configs = json.load(config_file)
 
 # load paths configs dictionary
-config_paths = configs.get('paths', {}) 
+config_paths = configs.get('paths', {})
 # assign paths
-palsa_shapefile = config_paths.get('palsa_shapefile') 
-testset_dir = config_paths.get('testset') 
-parent_dir = config_paths.get('data') 
+palsa_shapefile = config_paths.get('palsa_shapefile')
+testset_dir = config_paths.get('testset')
+parent_dir = config_paths.get('data')
 rgb_dir = os.path.join(parent_dir, 'rgb')
 hs_dir = os.path.join(parent_dir, 'hs')
 dem_dir = os.path.join(parent_dir, 'dem')
 labels_file = os.path.join(parent_dir, 'palsa_labels.csv')
 
 # load hyperparams configs dictionary
-config_hyperparams = configs.get('hyperparams', {}) 
+config_hyperparams = configs.get('hyperparams', {})
 # assign hyperparams
 n_samples = config_hyperparams.get('n_samples')
 batch_size = config_hyperparams.get('batch_size')
@@ -48,7 +49,7 @@ weight_decay = config_hyperparams.get('weight_decay')
 finetune = config_hyperparams.get('finetune')
 
 # load data configs dictionary
-config_data = configs.get('data', {}) 
+config_data = configs.get('data', {})
 # assign data configs
 im_size = config_data.get('im_size')
 min_palsa_positive_samples = config_data.get('min_palsa_positive_samples')
@@ -58,9 +59,9 @@ normalize = config_data.get('normalize')
 depth_layer = config_data.get('depth_layer')
 
 # load pseudomasks configs dictionary
-config_pseudomasks = configs.get('pseudomasks', {}) 
+config_pseudomasks = configs.get('pseudomasks', {})
 # assign pseudomasks configs
-cam_threshold_factor = config_pseudomasks.get('cam_threshold_factor') 
+cam_threshold_factor = config_pseudomasks.get('cam_threshold_factor')
 overlap_threshold = config_pseudomasks.get('overlap_threshold')
 snic_seeds = config_pseudomasks.get('snic_seeds')
 snic_compactness = config_pseudomasks.get('snic_compactness')
@@ -121,7 +122,7 @@ model.to(device)
 # Train model on binary data #
 ##############################
 
-best_model = ClassifierTrainLoop(model, train_loader, val_loader, 
+best_model = ClassifierTrainLoop(model, train_loader, val_loader,
                                  lr, weight_decay, lr_gamma, num_epochs)
 # after all epochs, save the best model as an artifact to wandb
 torch.save(best_model, '/home/nadjaflechner/models/model.pth')
@@ -138,7 +139,7 @@ if finetune:
     # use trained model from above
     model.load_state_dict(best_model)
     # finetune pretrained model (overwrite best_model to evaluate)
-    best_model = FinetuneLoop(model, train_loader, val_loader, 
+    best_model = FinetuneLoop(model, train_loader, val_loader,
                                  lr, weight_decay, lr_gamma, num_epochs)
     # after all epochs, save the best model as an artifact to wandb
     torch.save(best_model, '/home/nadjaflechner/models/model.pth')

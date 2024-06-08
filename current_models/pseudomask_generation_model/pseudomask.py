@@ -1,22 +1,23 @@
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-import matplotlib.pyplot as plt
-from utils import SaveFeatures
-from cnn_classifier import model_4D
-from torch.autograd import Variable
 import wandb
-from skimage.segmentation import mark_boundaries
 from pysnic.algorithms.snic import snic
+from skimage.segmentation import mark_boundaries
+from torch.autograd import Variable
 from torchmetrics.classification import MulticlassJaccardIndex
+
+from cnn_classifier import model_4D
+from utils import SaveFeatures
 
 
 class Pseudomasks():
-    def __init__(self, test_loader, cam_threshold_factor, overlap_threshold, 
+    def __init__(self, test_loader, cam_threshold_factor, overlap_threshold,
                  snic_seeds, snic_compactness, finetuned):
 
         self.test_loader = test_loader
-        self.cam_threshold_factor = cam_threshold_factor 
+        self.cam_threshold_factor = cam_threshold_factor
         self.overlap_threshold= overlap_threshold
         self.snic_seeds = snic_seeds
         self.snic_compactness = snic_compactness
@@ -30,7 +31,7 @@ class Pseudomasks():
             model.classifier = nn.Sequential(
                 nn.Conv2d(2, 2, kernel_size=3, padding=1),
                 nn.BatchNorm2d(2),
-                nn.ReLU(inplace=True), 
+                nn.ReLU(inplace=True),
                 nn.Conv2d(2, 2, kernel_size=3, padding=1))
         model.to(self.device)
         return model
@@ -46,7 +47,7 @@ class Pseudomasks():
         model.load_state_dict(state_dict)
         model.eval()
         self.model = model
-            
+
     def model_from_dict(self, state_dict):
         # if loading the model from a wandb artifact
         model = self.init_model()
@@ -55,11 +56,11 @@ class Pseudomasks():
         self.model = model
 
     def test_loop(self, test_loader):
-        
+
         running_jaccard = 0
         for i in range(len(test_loader.dataset)):
             im, lab, perc_label, gt_mask = next(iter(test_loader))
-            if not lab == 0:  # currently not yet comparing negative samples 
+            if not lab == 0:  # currently not yet comparing negative samples
                 pseudomask = self.generate_mask(im, gt_mask, save_plot=True)
                 # calculate metrics to evaluate model on test set
                 generated_mask = torch.Tensor(pseudomask).int().view(400,400).to(self.device)
@@ -82,8 +83,8 @@ class Pseudomasks():
         arr = sf.features.cpu().detach()#.numpy()
 
         pals_acts = torch.nn.functional.interpolate(
-                                            arr[:,1,:,:].unsqueeze(1), 
-                                            scale_factor = im.shape[3]/arr.shape[3], 
+                                            arr[:,1,:,:].unsqueeze(1),
+                                            scale_factor = im.shape[3]/arr.shape[3],
                                             mode='bilinear').cpu().detach()
         activation_threshold = (pals_acts.mean() + pals_acts.std()) * torch.tensor(self.cam_threshold_factor)
         pixels_activated = torch.where(torch.Tensor(pals_acts) > activation_threshold.cpu(), 1, 0).squeeze(0).permute(1,2,0).numpy()
@@ -106,7 +107,7 @@ class Pseudomasks():
         ax1.imshow(cpu_img[:,:,:3])
         ax1.set_xticks([])
         ax1.set_yticks([])
-        ax1.set_title(f'original image')
+        ax1.set_title('original image')
 
         ax2.imshow(cpu_img[:,:,:3])
         ax2.imshow(pals_acts.view(im.shape[3], im.shape[3], 1), alpha=.4, cmap='jet')

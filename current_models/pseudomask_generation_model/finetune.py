@@ -2,13 +2,13 @@
 # Imports #
 ############
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
-from torch.autograd import Variable
-import wandb
 import torch.optim.lr_scheduler as lr_scheduler
+import wandb
+from torch.autograd import Variable
 
 
 def FinetuneLoop(model, train_loader, val_loader, lr, weight_decay, lr_gamma, num_epochs):
@@ -25,7 +25,7 @@ def FinetuneLoop(model, train_loader, val_loader, lr, weight_decay, lr_gamma, nu
     model.classifier = nn.Sequential(
             nn.Conv2d(2, 2, kernel_size=3, padding=1),
             nn.BatchNorm2d(2),
-            nn.ReLU(inplace=True), 
+            nn.ReLU(inplace=True),
             nn.Conv2d(2, 2, kernel_size=3, padding=1))
     model.to(device)
     ########## DO I WANT TO FREEZE LAYERS???
@@ -50,14 +50,14 @@ def FinetuneLoop(model, train_loader, val_loader, lr, weight_decay, lr_gamma, nu
 
         model.train()
         train_batch_counter = 0
-        for batch_idx, (images, _, perc_labels) in enumerate(train_loader):     
+        for batch_idx, (images, _, perc_labels) in enumerate(train_loader):
             train_batch_counter += 1
 
-            # load images and labels 
-            images = Variable(images).to(device)  
-            perc_labels = Variable(perc_labels.float()).to(device)  
+            # load images and labels
+            images = Variable(images).to(device)
+            perc_labels = Variable(perc_labels.float()).to(device)
 
-            # train batch   
+            # train batch
             outputs = model(images)
             activation_mask = torch.where(outputs> activation_threshold, 1.0, 0.0)
             activated = torch.sum(activation_mask[:,1,:,:], dim=(-1,-2)).float()
@@ -67,7 +67,7 @@ def FinetuneLoop(model, train_loader, val_loader, lr, weight_decay, lr_gamma, nu
             optimizer.zero_grad()
             loss = loss_function(percent_activated, perc_labels)
             loss.backward()
-            optimizer.step()  
+            optimizer.step()
 
             # update metrics
             train_loss += loss.item()
@@ -79,12 +79,12 @@ def FinetuneLoop(model, train_loader, val_loader, lr, weight_decay, lr_gamma, nu
         running_val_MSE = []
         model.eval()
         with torch.no_grad():
-            for batch_idx, (images, _, perc_labels) in enumerate(val_loader):  
+            for batch_idx, (images, _, perc_labels) in enumerate(val_loader):
 
-                # load images and labels 
-                images = Variable(images).to(device)  
-                perc_labels = Variable(perc_labels.float()).to(device)  
-                outputs = model(images) 
+                # load images and labels
+                images = Variable(images).to(device)
+                perc_labels = Variable(perc_labels.float()).to(device)
+                outputs = model(images)
                 activation_mask = torch.where(outputs> activation_threshold, 1.0, 0.0)
                 activated = torch.sum(activation_mask[:,1,:,:], dim=(-1,-2)).float()
                 percent_activated = (activated / (activation_mask.shape[-1]* activation_mask.shape[-2])).float()
@@ -94,7 +94,7 @@ def FinetuneLoop(model, train_loader, val_loader, lr, weight_decay, lr_gamma, nu
                 val_loss = loss.item()
                 running_val_MSE.append(val_loss)
 
-        # lr scheduler step 
+        # lr scheduler step
         scheduler.step()
 
         # update metrics
