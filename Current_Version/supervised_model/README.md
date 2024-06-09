@@ -1,0 +1,1 @@
+Using the generated pseudomasks to train a supervised segmentation model 
