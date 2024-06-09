@@ -1,0 +1,26 @@
+{
+    "paths": {
+        "data": "/home/nadjaflechner/Palsa_data/generated_datasets/FINAL_200m_dataset/",
+        "testset": "/home/nadjaflechner/Palsa_data/generated_datasets/FINAL_200m_groundtruths",
+        "palsa_shapefile": "/home/nadjaflechner/Palsa_data/Palsa_rutor/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp"
+    },
+    "model": {
+        "artifact_path": "'nadjaflechner/VGG_CAMs/.....", 
+        "run_id": "XXXXX",
+        "finetuned": true
+    },
+    "data": {
+        "im_size": 200,
+        "min_palsa_positive_samples": 2,
+        "low_pals_in_val": true,
+        "augment": true,
+        "normalize": true,
+        "depth_layer": "dem"
+    },
+    "pseudomasks": {
+        "cam_threshold_factor": 0.5, 
+        "overlap_threshold": 0.5,
+        "snic_seeds": 100,
+        "snic_compactness": 10
+    }
+}

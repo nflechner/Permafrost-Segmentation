@@ -83,9 +83,10 @@ class Pseudomasks():
         arr = sf.features.cpu().detach()#.numpy()
 
         pals_acts = torch.nn.functional.interpolate(
-                                            arr[:,1,:,:].unsqueeze(1),
-                                            scale_factor = im.shape[3]/arr.shape[3],
-                                            mode='bilinear').cpu().detach()
+            input = arr[:,1,:,:].unsqueeze(1),
+            scale_factor = im.shape[3]/arr.shape[3],
+            mode='bilinear'
+        ).cpu().detach()
         activation_threshold = (pals_acts.mean() + pals_acts.std()) * torch.tensor(self.cam_threshold_factor)
         pixels_activated = torch.where(torch.Tensor(pals_acts) > activation_threshold.cpu(), 1, 0).squeeze(0).permute(1,2,0).numpy()
 
