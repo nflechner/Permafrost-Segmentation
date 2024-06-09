@@ -249,7 +249,7 @@ class Crop_tif_varsize():
         Generates negative samples. Equal amount of negative as positive samples are
         taken from each image such that the final dataset is 50/50 positive and negative. 
 
-            1) split the whole TIF into 100x100m polygons.
+            1) split the whole TIF into 200x200m polygons.
             2) filter out the areas containing palsa (positive samples)
             3) randomly sample as many negative samples as positive samples from that image
             4) crop the TIF according to the sampled areas and write locally
