@@ -102,7 +102,7 @@ class ImageDataset(Dataset):
         label = self.labels_df.iloc[idx, 0]
         binary_label = 1 if label > 0 else 0
         perc_label = label/100
-        return combined_tensor, binary_label, perc_label
+        return combined_tensor, binary_label, perc_label, img_name
 
 
 class TestSet(Dataset):

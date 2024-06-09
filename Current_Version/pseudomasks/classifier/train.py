@@ -41,7 +41,7 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
 
         model.train()
         train_batch_counter = 0
-        for batch_idx, (images, labels, perc_labels) in enumerate(train_loader):
+        for images, labels, _,_ in train_loader:
             train_batch_counter += 1
 
             # load images and labels
@@ -74,7 +74,7 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
         model.eval()
         val_batch_counter = 0
         with torch.no_grad():
-            for batch_idx, (images, labels, perc_labels) in enumerate(val_loader):
+            for images, labels, _,_ in val_loader:
                 val_batch_counter += 1
 
                 # load images and labels
