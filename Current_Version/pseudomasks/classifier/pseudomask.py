@@ -36,11 +36,11 @@ class Pseudomasks():
         model.to(self.device)
         return model
 
-    def model_from_artifact(self, run_id, artifact):
+    def model_from_artifact(self, run_id, artifact_path = 'nadjaflechner/VGG_CAMs/finetuned_model:V3829'):
         # if loading the model from a wandb artifact
 
         run = wandb.init(project= 'VGG_CAMs', id= run_id, resume = 'must')
-        artifact = run.use_artifact(f'nadjaflechner/VGG_CAMs/model:{artifact}', type='model')
+        artifact = run.use_artifact(artifact_path, type='model')
         artifact_dir = artifact.download()
         state_dict = torch.load(f"{artifact_dir}/model.pth")
         model = self.init_model()
@@ -58,8 +58,10 @@ class Pseudomasks():
     def test_loop(self, test_loader):
 
         running_jaccard = 0
-        for i in range(len(test_loader.dataset)):
-            im, lab, perc_label, gt_mask = next(iter(test_loader))
+        # for i in range(len(test_loader.dataset)):
+            # im, lab, perc_label, gt_mask = next(iter(test_loader))
+
+        for im, lab, _, gt_mask in test_loader:
             if not lab == 0:  # currently not yet comparing negative samples
                 pseudomask = self.generate_mask(im, gt_mask, save_plot=True)
                 # calculate metrics to evaluate model on test set
