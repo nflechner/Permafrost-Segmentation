@@ -10,12 +10,15 @@ import pandas as pd
 import rasterio
 from torch.utils.data import DataLoader
 
-from pseudomasks.classifier.pseudomask import Pseudomasks
-from pseudomasks.classifier.utils import ImageDataset, TestSet, filter_dataset
+print(os.getcwd())
+
+from pseudomask import Pseudomasks
+from utils import ImageDataset, TestSet, filter_dataset
 
 ##################
 ## load configs ##
 ##################
+
 
 # use this path when using vs code debugger.
 # config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
