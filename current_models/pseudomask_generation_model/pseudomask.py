@@ -137,6 +137,7 @@ class Pseudomasks():
 
         plt.tight_layout()
         wandb.log({'pseudomask': fig})
+        plt.close()
 
     def calc_metrics(self, pseudomask, gt):
         # Jaccard index (aka Intersection over Union - IoU) is the most common semantic seg metric
