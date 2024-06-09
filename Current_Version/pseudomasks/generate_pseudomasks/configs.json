@@ -2,14 +2,17 @@
     "paths": {
         "data": "/home/nadjaflechner/Palsa_data/generated_datasets/FINAL_200m_dataset/",
         "testset": "/home/nadjaflechner/Palsa_data/generated_datasets/FINAL_200m_groundtruths",
-        "palsa_shapefile": "/home/nadjaflechner/Palsa_data/Palsa_rutor/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp"
+        "palsa_shapefile": "/home/nadjaflechner/Palsa_data/Palsa_rutor/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp",
+        "final_pseudomasks_dir": "/home/nadjaflechner/Palsa_data/generated_datasets/final_pseudomasks/"
     },
     "model": {
-        "artifact_path": "'nadjaflechner/VGG_CAMs/.....", 
-        "run_id": "XXXXX",
+        "artifact_path": "nadjaflechner/VGG_CAMs/model:v31", 
+        "run_id": "3493djxg",
         "finetuned": true
     },
     "data": {
+        "n_samples": 1000,
+        "batch_size": 20,
         "im_size": 200,
         "min_palsa_positive_samples": 2,
         "low_pals_in_val": true,
