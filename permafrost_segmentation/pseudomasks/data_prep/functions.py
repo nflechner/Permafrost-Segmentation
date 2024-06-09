@@ -2,21 +2,16 @@
 ## imports ##
 #############
 
-# libraries 
-import geopandas as gpd
-import numpy as np 
-import pandas as pd
-import rasterio
-import matplotlib.pyplot as plt
-from rasterio.plot import show
-from rasterio.mask import mask
+# libraries
 import os
-import json
-from shapely.geometry import box, Polygon
-import logging
 import random
-import torchvision.transforms.functional as TF
+
+import geopandas as gpd
+import rasterio
 import torch
+import torchvision.transforms.functional as TF
+from rasterio.mask import mask
+from shapely.geometry import Polygon, box
 
 ##############
 ## dataprep ##
@@ -33,7 +28,7 @@ def get_RGB_match(DEM_name, original_tif_dir):
     all_RGB_files = os.listdir(original_tif_dir)
 
     newest_match = f"{RGB_name}_0000"
-    for file in all_RGB_files: 
+    for file in all_RGB_files:
         if str(file[:9]) == str(RGB_name) and int(file[10:14]) > int(newest_match[10:14]):
             newest_match = file
     return newest_match
@@ -77,14 +72,14 @@ def filter_imgs(all_rutor_path, original_tif_dir):
     dir_files = os.listdir(original_tif_dir)
     only_tifs = [filename for filename in dir_files if filename[-4:] == ".tif"]
 
-    # compare such only the part without the year. 
+    # compare such only the part without the year.
     only_tifs_noyear = [filename[:-8] for filename in only_tifs]
     uniques_noyear = [filename[:-8] for filename in list(uniques)]
 
     # check that all uniques are in only tifs
     if not (set(list(uniques_noyear)).issubset(set(only_tifs_noyear))):
         # logger.WARN(f"at least one tif name generated from all_rutor was not found in the directory: {original_tif_dir}")
-        print(f"at least one tif name generated from all_rutor was not found in the directory")
+        print("at least one tif name generated from all_rutor was not found in the directory")
         items_not_in_dir = [item for item in uniques_noyear if item not in only_tifs_noyear]
         print(f"items not in directory are: \n {items_not_in_dir}")
 
@@ -100,8 +95,7 @@ def filter_imgs(all_rutor_path, original_tif_dir):
 ##############
 
 class Crop_tif_varsize():
-    """
-    In: tif image to be cropped, and whole extent of 100x100 rutor
+    """In: tif image to be cropped, and whole extent of 100x100 rutor
     Returns: directory of one cropped tif per 100x100 ruta.
     """
 
@@ -125,8 +119,8 @@ class Crop_tif_varsize():
 
     def forward(self):
 
-        # generate all possible polygons in the image of dim x dim 
-        generated_polygons_all = self.generate_geoseries(self.hs_img.bounds, self.hs_img.crs, self.dimensions) 
+        # generate all possible polygons in the image of dim x dim
+        generated_polygons_all = self.generate_geoseries(self.hs_img.bounds, self.hs_img.crs, self.dimensions)
         generated_polygons_palsa = self.palsa_polygons(generated_polygons_all)
         positive_labels = self.crop_palsa_imgs(generated_polygons_palsa)
         aug_labels = self.crop_aug_imgs(generated_polygons_palsa)
@@ -144,14 +138,14 @@ class Crop_tif_varsize():
         cropped_polygons = rutor[rutor.geometry.apply(lambda x: x.intersection(image_polygon).equals(x))]
 
         return cropped_polygons
-    
+
     def new_palsa_percentage(self, big_ruta, joined_df):
         contained_rutor = joined_df.loc[joined_df['name'] == big_ruta]
         total_pals_percentage = contained_rutor['PALS'].sum()
-        percentage_factor = self.dimensions **2 / 10000 # TODO check this part. was 100x100 = 10000 so should now be the same still. 
+        percentage_factor = self.dimensions **2 / 10000 # TODO check this part. was 100x100 = 10000 so should now be the same still.
         palsa_percentage = total_pals_percentage / percentage_factor
         return palsa_percentage
-    
+
     def palsa_polygons(self, generated_polygons_all):
 
         # if 100x100 meter is used, the original rutor are used
@@ -162,7 +156,7 @@ class Crop_tif_varsize():
         d = {'name': [i for i in range(len(generated_polygons_all))]}
         generated_polygons_all_df = gpd.GeoDataFrame(d, geometry = generated_polygons_all, crs=generated_polygons_all.crs)
 
-        # Perform a spatial join between generated_polygons_all and filtered_rutor 
+        # Perform a spatial join between generated_polygons_all and filtered_rutor
         joined_df = gpd.sjoin(generated_polygons_all_df, self.filtered_rutor, how='inner', op = 'contains')
         covering_polygons_index = joined_df.index.unique() # find uniques
         result_df = generated_polygons_all_df.loc[covering_polygons_index] # select polygons that cover a smaller polygon
@@ -173,12 +167,9 @@ class Crop_tif_varsize():
         return result_df
 
     def generate_geoseries(self, bounds, crs, dims):
-
+        """Generates all dim x dim polygons present in the hillshade TIF.
         """
-        Generates all dim x dim polygons present in the hillshade TIF.
-        """
-
-        # height and width of new squares 
+        # height and width of new squares
         square_dims = dims # 100x100 meters
 
         # Calculate the number of segments in each dimension (tif width // desired width in pixels!)
@@ -222,31 +213,26 @@ class Crop_tif_varsize():
             dest.write(cropped_data)
 
     def crop_palsa_imgs(self, palsa_rutor):
-
+        """Crop TIF according to the polygons containing palsa.
         """
-        Crop TIF according to the polygons containing palsa. 
-        """
-
         cropped_tifs_percentages = {}
         # Iterate over each polygon in the GeoDataFrame
-        for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry):
+        for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry, strict=False):
             hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_crop_{idx}.tif'
             RGB_path = f'{self.destination_path}/rgb/{self.hs_name_code}_crop_{idx}.tif'
             DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_crop_{idx}.tif'
 
             # crop hillshade and RGB according to same polygons
-            self.make_crop(self.hs_img, polygon, hs_path) 
+            self.make_crop(self.hs_img, polygon, hs_path)
             self.make_crop(self.RGB_img, polygon, RGB_path)
             self.make_crop(self.DEM_img, polygon, DEM_path)
-            # Write the corresponding percentage to a dictionary as label 
+            # Write the corresponding percentage to a dictionary as label
             cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}"] = percentage
 
         return cropped_tifs_percentages
 
     def crop_negatives(self, generated_polygons_all, generated_polygons_palsa):
-
-        """
-        Generates negative samples. Equal amount of negative as positive samples are
+        """Generates negative samples. Equal amount of negative as positive samples are
         taken from each image such that the final dataset is 50/50 positive and negative. 
 
             1) split the whole TIF into 200x200m polygons.
@@ -255,13 +241,12 @@ class Crop_tif_varsize():
             4) crop the TIF according to the sampled areas and write locally
 
         """
-
-        # filter out the squares with palsa 
+        # filter out the squares with palsa
         positives_mask = ~generated_polygons_all.isin(generated_polygons_palsa.geometry)
         all_negatives = generated_polygons_all[positives_mask]
 
-        # randomly sample 
-        sample_size = int(len(generated_polygons_palsa)) # based on number of positive samples 
+        # randomly sample
+        sample_size = int(len(generated_polygons_palsa)) # based on number of positive samples
         if sample_size <= len(all_negatives): # default case
             negative_samples = all_negatives.sample(n=sample_size) # sample randomly
         else:
@@ -277,15 +262,15 @@ class Crop_tif_varsize():
             DEM_path = f'{self.destination_path}/dem/{self.hs_name_code}_negcrop_{idx}.tif'
 
             # crop hillshade and RGB according to same polygons
-            self.make_crop(self.hs_img, polygon, hs_path) 
+            self.make_crop(self.hs_img, polygon, hs_path)
             self.make_crop(self.RGB_img, polygon, RGB_path)
             self.make_crop(self.DEM_img, polygon, DEM_path)
 
-            # Write the corresponding percentage to a dictionary as label 
+            # Write the corresponding percentage to a dictionary as label
             cropped_tifs_percentages[f"{self.hs_name_code}_negcrop_{idx}"] = 0
 
         return cropped_tifs_percentages
-    
+
     ################
     # augmentation #
     ################
@@ -300,7 +285,7 @@ class Crop_tif_varsize():
                             "height": cropped_data.shape[1],
                             "width": cropped_data.shape[2],
                             "transform": cropped_transform})
-        
+
         cropped_data = torch.Tensor(cropped_data)
 
         if transform == 'hflip':
@@ -314,7 +299,7 @@ class Crop_tif_varsize():
 
         elif transform == 'contrast':
             cropped_data = TF.adjust_contrast(cropped_data, factor)
-    
+
         elif transform == 'brightness':
             cropped_data = TF.adjust_brightness(cropped_data, factor)
 
@@ -323,14 +308,11 @@ class Crop_tif_varsize():
             dest.write(cropped_data.numpy())
 
     def crop_aug_imgs(self, palsa_rutor):
-
+        """Crop TIF according to the polygons containing palsa.
         """
-        Crop TIF according to the polygons containing palsa. 
-        """
-
         cropped_tifs_percentages = {}
         # Iterate over each polygon in the GeoDataFrame
-        for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry):
+        for idx, percentage, polygon in zip(palsa_rutor.index, palsa_rutor.PALS, palsa_rutor.geometry, strict=False):
 
             hs_path = f'{self.destination_path}/hs/{self.hs_name_code}_crop_{idx}_aug.tif'
             RGB_path = f'{self.destination_path}/rgb/{self.hs_name_code}_crop_{idx}_aug.tif'
@@ -342,21 +324,21 @@ class Crop_tif_varsize():
             if transform in ['hflip', 'rotate']:
 
                 # crop hillshade and RGB according to same polygons
-                self.make_aug_crop(self.hs_img, polygon, hs_path, transform, 0) 
+                self.make_aug_crop(self.hs_img, polygon, hs_path, transform, 0)
                 self.make_aug_crop(self.RGB_img, polygon, RGB_path, transform, 0)
                 self.make_aug_crop(self.DEM_img, polygon, DEM_path, transform, 0)
-                # Write the corresponding percentage to a dictionary as label 
+                # Write the corresponding percentage to a dictionary as label
                 cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}_aug"] = percentage
 
             # only transform RGB layer
             if transform in ['sharpness', 'saturation', 'contrast', 'brightness']:
 
-                # factor to adjust by a random factor. 
+                # factor to adjust by a random factor.
                 factor = random.uniform(0.3,1.8)
 
                 # crop hillshade and RGB according to same polygons
                 self.make_aug_crop(self.RGB_img, polygon, RGB_path, transform, factor)
-                self.make_crop(self.hs_img, polygon, hs_path) 
+                self.make_crop(self.hs_img, polygon, hs_path)
                 self.make_crop(self.DEM_img, polygon, DEM_path)
                 # Write the corresponding percentage to a dictionary as label hs
                 cropped_tifs_percentages[f"{self.hs_name_code}_crop_{idx}_aug"] = percentage
