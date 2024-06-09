@@ -58,7 +58,7 @@ def tif_from_ruta(ruta_geometry):
     elif 75 <= int(str(minx_ruta)[2:4]) < 100:
         km_siffran_x = '75'
 
-    year = 2018 # WHICH YEAR SHOULD IT BE??
+    year = 2018 
 
     filename = f"{miny}_{minx}_{km_siffran_y}{km_siffran_x}_{year}.tif"
     return filename

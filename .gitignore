@@ -1,9 +1,13 @@
-# OS generated files #
-######################
+# OS generated files 
 __pycache__/
 .DS_Store
 .pth
 
+
 # folders
 artifacts/
 wandb/
+
+
+# linting
+.ruff_cache
