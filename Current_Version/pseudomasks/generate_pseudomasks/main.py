@@ -5,16 +5,13 @@
 import json
 import os
 
-import torch
 import wandb
 import pandas as pd
+import rasterio
 from torch.utils.data import DataLoader
 
-from classifier.cnn_classifier import model_4D
-from classifier.finetune import FinetuneLoop
-from classifier.pseudomask import Pseudomasks
-from classifier.train import ClassifierTrainLoop
-from classifier.utils import ImageDataset, TestSet, filter_dataset
+from pseudomasks.classifier.pseudomask import Pseudomasks
+from pseudomasks.classifier.utils import ImageDataset, TestSet, filter_dataset
 
 ##################
 ## load configs ##
@@ -31,6 +28,7 @@ with open(config_path, 'r') as config_file:
 config_paths = configs.get('paths', {})
 # assign paths
 palsa_shapefile = config_paths.get('palsa_shapefile')
+final_pseudomasks_dir = config_paths.get('final_pseudomasks_dir')
 testset_dir = config_paths.get('testset')
 parent_dir = config_paths.get('data')
 rgb_dir = os.path.join(parent_dir, 'rgb')
@@ -38,20 +36,18 @@ hs_dir = os.path.join(parent_dir, 'hs')
 dem_dir = os.path.join(parent_dir, 'dem')
 labels_file = os.path.join(parent_dir, 'palsa_labels.csv')
 
-# load hyperparams configs dictionary
-config_hyperparams = configs.get('hyperparams', {})
-# assign hyperparams
-n_samples = config_hyperparams.get('n_samples')
-batch_size = config_hyperparams.get('batch_size')
-num_epochs = config_hyperparams.get('num_epochs')
-lr = config_hyperparams.get('lr')
-lr_gamma = config_hyperparams.get('lr_gamma')
-weight_decay = config_hyperparams.get('weight_decay')
-finetune = config_hyperparams.get('finetune')
+# load model configs dictionary
+config_model = configs.get('model', {})
+# assign model
+artifact_path = config_model.get('artifact_path')
+run_id = config_model.get('run_id')
+finetune = config_model.get('finetuned')
 
 # load data configs dictionary
 config_data = configs.get('data', {})
 # assign data configs
+n_samples = config_data.get('n_samples')
+batch_size = config_data.get('batch_size')
 im_size = config_data.get('im_size')
 min_palsa_positive_samples = config_data.get('min_palsa_positive_samples')
 low_pals_in_val = config_data.get('low_pals_in_val')
@@ -67,96 +63,51 @@ overlap_threshold = config_pseudomasks.get('overlap_threshold')
 snic_seeds = config_pseudomasks.get('snic_seeds')
 snic_compactness = config_pseudomasks.get('snic_compactness')
 
-##########################
-# log hyperparams to w&b #
-##########################
-
-run = wandb.init(
-    # Set the project where this run will be logged
-    project="VGG_CAMs",
-    # Track hyperparameters and run metadata
-    config={
-        "batch_size": batch_size,
-        "n_samples": n_samples,
-        "finetune": finetune,
-        "weight_decay": weight_decay,
-        "im_size": im_size,
-        "min_palsa_positive_samples": min_palsa_positive_samples,
-        "augment": augment,
-        "normalize": normalize,
-        "low_pals_in_val": low_pals_in_val,
-        "depth_layer": depth_layer,
-        "cam_threshold_factor": cam_threshold_factor,
-        "overlap_threshold": overlap_threshold,
-        "snic_seeds": snic_seeds,
-        "snic_compactness": snic_compactness
-        }
-)
 
 #########################
 # configure dataloaders #
 #########################
 
-train_files, val_files = filter_dataset(labels_file, augment, min_palsa_positive_samples, low_pals_in_val, n_samples)
+train_files, val_files = filter_dataset(
+    labels_file, augment, min_palsa_positive_samples, low_pals_in_val, n_samples)
 all_files = pd.concat([train_files, val_files])
 
 # choose depth data based on configs
 depth_dir = hs_dir if depth_layer == "hs" else dem_dir
 # Create the dataset and loaders for the entire dataset.
 dataset = ImageDataset(depth_dir, rgb_dir, all_files, im_size, normalize)
-loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-################
-# define model #
-################
-
-model = model_4D()
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-model.to(device)
+loader = DataLoader(dataset, batch_size=1, shuffle=True)
 
 
-##############################
-# Train model on binary data #
-##############################
+#############################
+# generate all pseudolabels #
+#############################
 
-best_model = ClassifierTrainLoop(model, train_loader, val_loader,
-                                 lr, weight_decay, lr_gamma, num_epochs)
-# after all epochs, save the best model as an artifact to wandb
-torch.save(best_model, '/home/nadjaflechner/models/model.pth')
-artifact = wandb.Artifact('classification_model', type='model')
-artifact.add_file('/home/nadjaflechner/models/model.pth')
-run.log_artifact(artifact)
+test_set = TestSet(depth_layer, testset_dir, normalize)
+test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
 
+pseudomask_generator = Pseudomasks(
+    test_loader, cam_threshold_factor, overlap_threshold,
+    snic_seeds, snic_compactness, finetuned = finetune
+    )
+pseudomask_generator.model_from_artifact(run_id, artifact_path)
 
-############################
-# Finetune model on % data #
-############################
+for im,_,_,img_name in loader:
+    pseudomask = pseudomask_generator.generate_mask(im, None, save_plot=False)
+    # Update the metadata for the cropped TIF
+    cropped_meta = im.meta.copy()
+    cropped_meta.update({"driver": "GTiff",
+                        "height": im.shape[1],
+                        "width": im.shape[2]})
+    
+    print(type(pseudomask))
+    print(pseudomask.shape)
 
-if finetune:
-    # use trained model from above
-    model.load_state_dict(best_model)
-    # finetune pretrained model (overwrite best_model to evaluate)
-    best_model = FinetuneLoop(model, train_loader, val_loader,
-                                 lr, weight_decay, lr_gamma, num_epochs)
-    # after all epochs, save the best model as an artifact to wandb
-    torch.save(best_model, '/home/nadjaflechner/models/model.pth')
-    artifact = wandb.Artifact('finetuned_model', type='model')
-    artifact.add_file('/home/nadjaflechner/models/model.pth')
-    run.log_artifact(artifact)
-
-
-##################
-# evaluate model #
-##################
-
-# print('Testing model ...')
-# test_set = TestSet(depth_layer, testset_dir, normalize)
-# test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
-
-# pseudomask_generator = Pseudomasks(test_loader, cam_threshold_factor, overlap_threshold,
-#                                     snic_seeds, snic_compactness, finetuned = finetune)
-# pseudomask_generator.model_from_dict(best_model)
-# pseudomask_generator.test_loop(test_loader)
+    break
+    # Save the cropped TIF file with a unique name
+    output_path = os.path.join(final_pseudomasks_dir, f"{img_name}.tif")
+    with rasterio.open(output_path, "w", **cropped_meta) as dest:
+        dest.write(pseudomask)
 
 
 ##############
