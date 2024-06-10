@@ -17,7 +17,6 @@ from utils.data_modules import ImageDataset, TestSet, filter_dataset
 ## load configs ##
 ##################
 
-
 # use this path when using vs code debugger.
 # config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
 
