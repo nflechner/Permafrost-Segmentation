@@ -9,11 +9,11 @@ import torch
 import wandb
 from torch.utils.data import DataLoader
 
-from cnn_classifier import model_4D
-from finetune import FinetuneLoop
-from pseudomask import Pseudomasks
-from train import ClassifierTrainLoop
-from utils import ImageDataset, TestSet, filter_dataset
+from model.cnn_classifier import model_4D
+from model.finetune import FinetuneLoop
+from model.pseudomask import Pseudomasks
+from model.train import ClassifierTrainLoop
+from utils.data_modules import ImageDataset, TestSet, filter_dataset
 
 ##################
 ## load configs ##

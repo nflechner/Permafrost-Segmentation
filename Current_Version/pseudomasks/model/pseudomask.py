@@ -8,8 +8,8 @@ from skimage.segmentation import mark_boundaries
 from torch.autograd import Variable
 from torchmetrics.classification import MulticlassJaccardIndex
 
-from cnn_classifier import model_4D
-from utils import SaveFeatures
+from model.cnn_classifier import model_4D
+from utils.data_modules import SaveFeatures
 
 
 class Pseudomasks():

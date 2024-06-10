@@ -10,10 +10,8 @@ import pandas as pd
 import rasterio
 from torch.utils.data import DataLoader
 
-print(os.getcwd())
-
-from pseudomask import Pseudomasks
-from utils import ImageDataset, TestSet, filter_dataset
+from model.pseudomask import Pseudomasks
+from utils.data_modules import ImageDataset, TestSet, filter_dataset
 
 ##################
 ## load configs ##
