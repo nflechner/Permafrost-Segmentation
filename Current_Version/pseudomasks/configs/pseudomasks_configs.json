@@ -15,7 +15,6 @@
         "batch_size": 20,
         "im_size": 200,
         "min_palsa_positive_samples": 2,
-        "low_pals_in_val": true,
         "augment": true,
         "normalize": true,
         "depth_layer": "dem"

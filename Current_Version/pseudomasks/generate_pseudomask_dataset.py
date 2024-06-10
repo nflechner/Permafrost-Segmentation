@@ -20,7 +20,7 @@ from utils.data_modules import ImageDataset, TestSet, filter_dataset
 # use this path when using vs code debugger.
 # config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
 
-config_path = os.path.join(os.getcwd(), 'configs.json')
+config_path = os.path.join(os.getcwd(), 'pseudomasks_configs/configs.json')
 with open(config_path, 'r') as config_file:
     configs = json.load(config_file)
 
@@ -50,7 +50,6 @@ n_samples = config_data.get('n_samples')
 batch_size = config_data.get('batch_size')
 im_size = config_data.get('im_size')
 min_palsa_positive_samples = config_data.get('min_palsa_positive_samples')
-low_pals_in_val = config_data.get('low_pals_in_val')
 augment = config_data.get('augment')
 normalize = config_data.get('normalize')
 depth_layer = config_data.get('depth_layer')
@@ -69,7 +68,12 @@ snic_compactness = config_pseudomasks.get('snic_compactness')
 #########################
 
 train_files, val_files = filter_dataset(
-    labels_file, augment, min_palsa_positive_samples, low_pals_in_val, n_samples)
+    labels_file = labels_file,
+    augment = augment,
+    min_palsa_positive_samples = min_palsa_positive_samples,
+    low_pals_in_val = False, 
+    n_samples = n_samples
+    )
 all_files = pd.concat([train_files, val_files])
 
 # choose depth data based on configs
