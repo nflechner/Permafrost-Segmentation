@@ -7,7 +7,7 @@
     "hyperparams": {
         "n_samples": 9000,
         "batch_size": 20,
-        "num_epochs": 1,
+        "num_epochs": 20,
         "lr": 0.00001,
         "lr_gamma": 0.93,
         "weight_decay": 0.04,
