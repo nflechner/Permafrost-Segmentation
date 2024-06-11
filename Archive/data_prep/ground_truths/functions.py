@@ -70,10 +70,17 @@ def tif_from_ruta(ruta_geometry):
 
 
 def filter_imgs(all_rutor_path, original_tif_dir):
+
+    # read in all ground truth polygons from shapefile
     all_rutor = gpd.read_file(all_rutor_path)
+
+    # filter any invalid polygons that may have been created
+    invalid = all_rutor.loc[~all_rutor.geometry.is_valid]
+    all_rutor = all_rutor.drop(invalid.index) 
+
+    # derive the tifs which correspond to the polygons 
     all_rutor['in_tif'] = all_rutor['geometry'].map(tif_from_ruta)
     uniques = all_rutor.in_tif.unique()
-
     dir_files = os.listdir(original_tif_dir)
     only_tifs = [filename for filename in dir_files if filename[-4:] == ".tif"]
 
@@ -118,7 +125,13 @@ class Crop_tif_varsize():
         self.hs_img_path = hs_img_path
         self.DEM_img_path = DEM_img_path
         self.rutor_path = rutor_path
-        self.groundtruth_polygs = gpd.read_file(groundtruth_shapefile_path)
+
+        # define & filter ground truth polygons 
+        groundtruth_polygs = gpd.read_file(groundtruth_shapefile_path)
+        invalid = groundtruth_polygs.loc[~groundtruth_polygs.geometry.is_valid]
+        self.groundtruth_polygs = groundtruth_polygs.drop(invalid.index) 
+        
+        # open images
         self.RGB_img = rasterio.open(RGB_img_path)
         self.hs_img = rasterio.open(hs_img_path)
         self.DEM_img = rasterio.open(DEM_img_path)
