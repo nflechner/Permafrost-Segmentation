@@ -94,7 +94,7 @@ for configsfile in os.listdir(configs_dir):
             "snic_seeds": snic_seeds,
             "snic_compactness": snic_compactness
             },
-            tags=['FinalGridsearch']
+            tags=['FinalGridsearchWTest']
     )
 
     #########################
@@ -154,14 +154,14 @@ for configsfile in os.listdir(configs_dir):
     # evaluate model #
     ##################
 
-    # print('Testing model ...')
-    # test_set = TestSet(depth_layer, testset_dir, normalize)
-    # test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
+    print('Testing model ...')
+    test_set = TestSet(depth_layer, testset_dir, normalize)
+    test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
 
-    # pseudomask_generator = Pseudomasks(test_loader, cam_threshold_factor, overlap_threshold,
-    #                                     snic_seeds, snic_compactness, finetuned = finetune)
-    # pseudomask_generator.model_from_dict(best_model)
-    # pseudomask_generator.test_loop(test_loader)
+    pseudomask_generator = Pseudomasks(test_loader, cam_threshold_factor, overlap_threshold,
+                                        snic_seeds, snic_compactness, finetuned = finetune)
+    pseudomask_generator.model_from_dict(best_model)
+    pseudomask_generator.test_loop(test_loader)
 
 
     ##############

@@ -5,17 +5,17 @@
         "palsa_shapefile": "/home/nadjaflechner/Palsa_data/Palsa_rutor/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp"
     },
     "hyperparams": {
-        "n_samples": 10200,
-        "batch_size": 20,
+        "n_samples": 11000,
+        "batch_size": 10,
         "num_epochs": 20,
         "lr": 0.00001,
-        "lr_gamma": 0.93,
-        "weight_decay": 0.04,
+        "lr_gamma": 0.8,
+        "weight_decay": 0.05,
         "finetune": false
     },
     "data": {
         "im_size": 200,
-        "min_palsa_positive_samples": 0,
+        "min_palsa_positive_samples": 5,
         "low_pals_in_val": false,
         "augment": false,
         "normalize": true,

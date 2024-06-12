@@ -15,10 +15,10 @@
     },
     "data": {
         "im_size": 200,
-        "min_palsa_positive_samples": 0,
+        "min_palsa_positive_samples": 10,
         "low_pals_in_val": false,
         "augment": false,
-        "normalize": true,
+        "normalize": false,
         "depth_layer": "dem"
     },
     "pseudomasks": {
