@@ -70,7 +70,6 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
         val_Recall = 0
         val_F1 = 0
 
-        running_val_F1 = []
         model.eval()
         val_batch_counter = 0
         with torch.no_grad():
@@ -89,11 +88,6 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
                 val_Recall += Recall(outputs.softmax(dim=-1), labels)
                 val_F1 += F1(outputs.softmax(dim=-1), labels)
 
-                # handle F1 separately for best model selection
-                f1 = F1(outputs.softmax(dim=-1), labels)
-                running_val_F1.append(f1.detach().cpu().numpy())
-                val_F1 = f1
-
         # lr scheduler step
         scheduler.step()
 
@@ -109,9 +103,9 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
         wandb.log({"train_F1": train_F1 / train_batch_counter})
 
         # update current best model
-        if np.mean(running_val_F1) > max_val_F1:
+        if (val_F1 / val_batch_counter) > max_val_F1:
             best_model = model.state_dict()
-            max_val_F1 = np.mean(running_val_F1)
+            max_val_F1 = np.mean(val_F1 / val_batch_counter)
 
     return best_model
 

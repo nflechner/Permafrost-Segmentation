@@ -6,16 +6,16 @@
     },
     "hyperparams": {
         "n_samples": 10200,
-        "batch_size": 20,
+        "batch_size": 10,
         "num_epochs": 20,
         "lr": 0.00001,
-        "lr_gamma": 0.93,
-        "weight_decay": 0.04,
+        "lr_gamma": 0.9,
+        "weight_decay": 0.1,
         "finetune": false
     },
     "data": {
         "im_size": 200,
-        "min_palsa_positive_samples": 0,
+        "min_palsa_positive_samples": 10,
         "low_pals_in_val": false,
         "augment": false,
         "normalize": true,
