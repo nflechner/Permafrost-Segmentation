@@ -3,6 +3,7 @@
 ############
 
 import numpy as np
+import gc
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -105,7 +106,10 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
         # update current best model
         if (val_F1 / val_batch_counter) > max_val_F1:
             best_model = model.state_dict()
-            max_val_F1 = np.mean(val_F1 / val_batch_counter)
+            max_val_F1 = val_F1 / val_batch_counter
+
+    del images
+    del labels
 
     return best_model
 

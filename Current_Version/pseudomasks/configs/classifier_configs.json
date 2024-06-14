@@ -6,12 +6,12 @@
     },
     "hyperparams": {
         "n_samples": 9000,
-        "batch_size": 20,
+        "batch_size": 15,
         "num_epochs": 1,
         "lr": 0.00001,
         "lr_gamma": 0.93,
         "weight_decay": 0.04,
-        "finetune": false
+        "finetune": true
     },
     "data": {
         "im_size": 200,
