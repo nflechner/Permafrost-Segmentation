@@ -69,7 +69,7 @@ snic_compactness = config_pseudomasks.get('snic_compactness')
 
 train_files, val_files = filter_dataset(
     labels_file = labels_file,
-    augment = augment,
+    augment = augment, ### DO I WANT AUGMENTED IMGS TO HAVE PSEUDOMASK? 
     min_palsa_positive_samples = min_palsa_positive_samples,
     low_pals_in_val = False, 
     n_samples = n_samples
@@ -87,11 +87,8 @@ loader = DataLoader(dataset, batch_size=1, shuffle=True)
 # generate all pseudolabels #
 #############################
 
-test_set = TestSet(depth_layer, testset_dir, normalize)
-test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
-
 pseudomask_generator = Pseudomasks(
-    test_loader, cam_threshold_factor, overlap_threshold,
+    dataset, cam_threshold_factor, overlap_threshold,
     snic_seeds, snic_compactness, finetuned = finetune
     )
 pseudomask_generator.model_from_artifact(run_id, artifact_path)
