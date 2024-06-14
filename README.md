@@ -1,3 +1,5 @@
+### Weakly Supervised Learning for Semantic Segmentation of Permafrost Palsas
+
 This project aims to segment palsas (a type of permafrost) from aerial images. Specifically, this research used training data from Sweden. Lantmateriet has aerial images (RGB and height information) publically available. There were no segmentation labels to train a model with, however previous work by [Backe et al.](https://www.lansstyrelsen.se/norrbotten/om-oss/vara-tjanster/publikationer/2014/kartering-av-sveriges-palsmyrar.html) provides us with weak labels. Therefore, to identify the locations of palsas, a weakly supervised learning approach was used. This project is two-step:
 
 ###### Generating pseudomasks from weak labels. 

@@ -112,10 +112,18 @@ class TestSet(Dataset):
         self.dem_dir = os.path.join(gt_dir, 'dem')
         self.groundtruth_dir = os.path.join(gt_dir, 'groundtruth_mask')
         self.depth_dir = self.hs_dir if depth_layer == "hs" else self.dem_dir
-        self.labels_path = os.path.join(gt_dir, 'palsa_labels.csv')
-        self.labels_df = pd.read_csv(self.labels_path, index_col=0)
+        self.labels_path = os.path.join(gt_dir, 'new_palsa_labels.csv')
         self.im_size = 200
         self.normalize = normalize
+
+        # configure labels file.
+        # only use samples with >5% palsa, where MS-Backe difference is <10%
+        unfiltered_labels_df = pd.read_csv(self.labels_path, index_col=0)
+        self.labels_df = unfiltered_labels_df.loc[
+            (unfiltered_labels_df['difference']<10) & 
+            (unfiltered_labels_df['palsa_percentage']>5)
+            ]
+        
 
     def __len__(self):
         return len(self.labels_df)
