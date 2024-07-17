@@ -28,7 +28,7 @@ def filter_dataset(
         # find indices of samples with 0<x<threshold palsa
         drop_range = labels_df[
             (labels_df['palsa_percentage'] > 0)
-            & (labels_df['palsa_percentage'] <= min_palsa_positive_samples)].index
+            & (labels_df['palsa_percentage'] < min_palsa_positive_samples)].index
 
         # remove low palsa images from train set
         train_df = labels_df.drop(drop_range).sample(n_train)
