@@ -15,16 +15,54 @@ from model.pseudomask import Pseudomasks
 from model.train import ClassifierTrainLoop
 from utils.data_modules import ImageDataset, TestSet, filter_dataset
 
-##################
-## load configs ##
-##################
+########################
+# define sweep configs #
+########################
 
-# use this path when using vs code debugger.
-# config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
+# Define sweep config
+sweep_configuration = {
+    "method": "random",
+    "name": "focused_hyperparam_sweep",
+    "metric": {"goal": "maximize", "name": "val_acc"},
+    "parameters": {
+        "min_palsa_positive_samples": {"max": 7, "min": 2},
+        "weight_decay": {"max": 0.1, "min": 0.01},
+        "lr": {"max": 0.00001, "min": 0.000001},
+        "lr_gamma": {"max": 1, "min": 0.5},
+        "augment": {"values": [True, False]},
+    },
+}
+
+##########################
+# hardcode other configs #
+##########################
 
 config_path = os.path.join(os.getcwd(), 'configs/classifier_configs.json')
 with open(config_path, 'r') as config_file:
     configs = json.load(config_file)
+
+# load hyperparams configs dictionary
+config_hyperparams = configs.get('hyperparams', {})
+# assign hyperparams
+n_samples = 10200
+batch_size = 20
+num_epochs = 20
+finetune = False
+im_size = 200
+low_pals_in_val = False
+normalize = True
+depth_layer = 'hs'
+cam_threshold_factor = 0.95
+overlap_threshold = 0.3
+snic_seeds = 100
+snic_compactness = 10
+
+##################
+## load paths ##
+##################
+
+# use this path when using vs code debugger.
+# config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
 
 # load paths configs dictionary
 config_paths = configs.get('paths', {})
@@ -37,34 +75,8 @@ hs_dir = os.path.join(parent_dir, 'hs')
 dem_dir = os.path.join(parent_dir, 'dem')
 labels_file = os.path.join(parent_dir, 'palsa_labels.csv')
 
-# load hyperparams configs dictionary
-config_hyperparams = configs.get('hyperparams', {})
-# assign hyperparams
-n_samples = config_hyperparams.get('n_samples')
-batch_size = config_hyperparams.get('batch_size')
-num_epochs = config_hyperparams.get('num_epochs')
-lr = config_hyperparams.get('lr')
-lr_gamma = config_hyperparams.get('lr_gamma')
-weight_decay = config_hyperparams.get('weight_decay')
-finetune = config_hyperparams.get('finetune')
-
-# load data configs dictionary
-config_data = configs.get('data', {})
-# assign data configs
-im_size = config_data.get('im_size')
-min_palsa_positive_samples = config_data.get('min_palsa_positive_samples')
-low_pals_in_val = config_data.get('low_pals_in_val')
-augment = config_data.get('augment')
-normalize = config_data.get('normalize')
-depth_layer = config_data.get('depth_layer')
-
-# load pseudomasks configs dictionary
-config_pseudomasks = configs.get('pseudomasks', {})
-# assign pseudomasks configs
-cam_threshold_factor = config_pseudomasks.get('cam_threshold_factor')
-overlap_threshold = config_pseudomasks.get('overlap_threshold')
-snic_seeds = config_pseudomasks.get('snic_seeds')
-snic_compactness = config_pseudomasks.get('snic_compactness')
+#################################################################################
+################ WAS DONE UNTIL HERE, CONTINUE BELOW
 
 ##########################
 # log hyperparams to w&b #

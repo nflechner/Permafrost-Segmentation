@@ -7,18 +7,19 @@ import wandb
 from pysnic.algorithms.snic import snic
 from skimage.segmentation import mark_boundaries
 from torch.autograd import Variable
-
+from torchmetrics.classification import MulticlassJaccardIndex
+from torchmetrics import Accuracy, F1Score
 
 from model.cnn_classifier import model_4D
 from utils.data_modules import SaveFeatures
 
 
 class Pseudomasks():
-    def __init__(self, test_loader, cam_threshold_factor, overlap_threshold,
+    def __init__(self, test_loader, cam_threshold, overlap_threshold,
                  snic_seeds, snic_compactness, finetuned):
 
         self.test_loader = test_loader
-        self.cam_threshold_factor = cam_threshold_factor
+        self.cam_threshold = cam_threshold
         self.overlap_threshold= overlap_threshold
         self.snic_seeds = snic_seeds
         self.snic_compactness = snic_compactness
@@ -61,16 +62,22 @@ class Pseudomasks():
     def test_loop(self, test_loader):
 
         running_jaccard = 0
+        running_accuracy = 0
+        running_F1 = 0
 
-        # TODO: restore this funciton to original below (delete all above)
         for im, lab, _, gt_mask in test_loader:
-            pseudomask = self.generate_mask(im, gt_mask, save_plot=True)
+            pseudomask = self.generate_mask(im, gt_mask, save_plot=False) # TODO make saveplot true sometimes
             # calculate metrics to evaluate model on test set
             generated_mask = torch.Tensor(pseudomask).int().view(400,400).to(self.device)
             groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400).to(self.device)
-            metrics = self.calc_metrics(generated_mask, groundtruth_mask)
-            running_jaccard += metrics
+            jaccard, accuracy, F1 = self.calc_metrics(generated_mask, groundtruth_mask)
+            running_jaccard += jaccard
+            running_accuracy += accuracy
+            running_F1 += F1
+
         wandb.log({"test_mean_jaccard": running_jaccard / len(test_loader.dataset)})
+        wandb.log({"test_mean_accuracy": running_accuracy / len(test_loader.dataset)})
+        wandb.log({"test_mean_F1": running_F1 / len(test_loader.dataset)})
 
     def generate_mask(self, im, gt, save_plot: bool):
 
@@ -90,7 +97,9 @@ class Pseudomasks():
             scale_factor = im.shape[3]/arr.shape[3],
             mode='bilinear'
         ).cpu().detach()
-        activation_threshold = (pals_acts.mean() + pals_acts.std()) * torch.tensor(self.cam_threshold_factor)
+        print(f'has max activation {pals_acts.max()} and mean {pals_acts.mean()}')
+
+        activation_threshold = self.cam_threshold
         pixels_activated = torch.where(torch.Tensor(pals_acts) > activation_threshold.cpu(), 1, 0).squeeze(0).permute(1,2,0).numpy()
 
         # Plot image with CAM
@@ -99,8 +108,10 @@ class Pseudomasks():
         pseudomask = self.create_superpixel_mask(superpixels, pixels_activated.squeeze(), threshold=self.overlap_threshold)
 
         if save_plot: self.generate_plot(cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt)
+        
+        return pseudomask, (pals_acts.max(), pals_acts.mean())
 
-        return pseudomask
+        # return pseudomask
 
     def generate_plot(self, cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt):
 
@@ -152,9 +163,11 @@ class Pseudomasks():
 
     def calc_metrics(self, pseudomask, gt):
         # Jaccard index (aka Intersection over Union - IoU) is the most common semantic seg metric
-        metric = MulticlassJaccardIndex(num_classes=2).to(self.device)
-        jaccard = metric(pseudomask, gt)
-        return jaccard
+        jaccard = MulticlassJaccardIndex(num_classes=2).to(self.device)
+        accuracy = Accuracy(task="multiclass", num_classes=2).to(self.device)
+        F1 = F1Score(task="multiclass", num_classes=2).to(self.device)
+
+        return jaccard(pseudomask, gt), accuracy(pseudomask, gt), F1(pseudomask, gt)
 
     def create_superpixel_mask(self, superpixels, binary_mask, threshold):
         # Get the unique superpixel labels
@@ -168,13 +181,9 @@ class Pseudomasks():
             # Create a mask for the current superpixel
             superpixel_mask = (superpixels == label)
 
-            # Count the number of pixels in the superpixel
+            # Calculate the overlap percentage between activated and superpixel
             superpixel_size = np.sum(superpixel_mask)
-
-            # Count the number of pixels in the superpixel that overlap with the binary mask
             overlap_count = np.sum(superpixel_mask & binary_mask)
-
-            # Calculate the overlap percentage
             overlap_percentage = overlap_count / superpixel_size
 
             # Store the overlap percentage in the dictionary
