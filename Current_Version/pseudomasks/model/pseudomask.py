@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 import numpy as np
 import torch
 import torch.nn as nn
@@ -6,7 +7,7 @@ import wandb
 from pysnic.algorithms.snic import snic
 from skimage.segmentation import mark_boundaries
 from torch.autograd import Variable
-from torchmetrics.classification import MulticlassJaccardIndex
+
 
 from model.cnn_classifier import model_4D
 from utils.data_modules import SaveFeatures
@@ -36,13 +37,15 @@ class Pseudomasks():
         model.to(self.device)
         return model
 
-    def model_from_artifact(self, run_id, artifact_path = 'nadjaflechner/VGG_CAMs/finetuned_model:V3829'):
+    def model_from_artifact(self, artifact_path = 'nadjaflechner/VGG_CAMs/finetuned_model:V3829'):
         # if loading the model from a wandb artifact
 
-        run = wandb.init(project= 'VGG_CAMs', id= run_id, resume = 'must')
+        run = wandb.init(project= 'VGG_CAMs')
         artifact = run.use_artifact(artifact_path, type='model')
         artifact_dir = artifact.download()
-        state_dict = torch.load(f"{artifact_dir}/model.pth")
+        # state_dict = torch.load(f"{artifact_dir}/model.pth")
+        # TODO: REMOVE LINE BELOW (FOR RUNNING ON MY MACBOOK)
+        state_dict = torch.load(f"{artifact_dir}/model.pth", map_location=torch.device('cpu'))
         model = self.init_model()
         model.load_state_dict(state_dict)
         model.eval()
@@ -58,18 +61,16 @@ class Pseudomasks():
     def test_loop(self, test_loader):
 
         running_jaccard = 0
-        # for i in range(len(test_loader.dataset)):
-            # im, lab, perc_label, gt_mask = next(iter(test_loader))
 
+        # TODO: restore this funciton to original below (delete all above)
         for im, lab, _, gt_mask in test_loader:
-            if not lab == 0:  # currently not yet comparing negative samples
-                pseudomask = self.generate_mask(im, gt_mask, save_plot=True)
-                # calculate metrics to evaluate model on test set
-                generated_mask = torch.Tensor(pseudomask).int().view(400,400).to(self.device)
-                groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400).to(self.device)
-                metrics = self.calc_metrics(generated_mask, groundtruth_mask)
-                running_jaccard += metrics
-        wandb.log({"test_mean_jaccard": metrics / len(test_loader.dataset)})
+            pseudomask = self.generate_mask(im, gt_mask, save_plot=True)
+            # calculate metrics to evaluate model on test set
+            generated_mask = torch.Tensor(pseudomask).int().view(400,400).to(self.device)
+            groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400).to(self.device)
+            metrics = self.calc_metrics(generated_mask, groundtruth_mask)
+            running_jaccard += metrics
+        wandb.log({"test_mean_jaccard": running_jaccard / len(test_loader.dataset)})
 
     def generate_mask(self, im, gt, save_plot: bool):
 
@@ -104,6 +105,9 @@ class Pseudomasks():
     def generate_plot(self, cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt):
 
         # Plotting fucntion to visualize the pseudomask generation process (and intermediates)
+        cmap = mcolors.ListedColormap(['black', 'lightblue'])
+        bounds = [0, 0.5, 1]
+        norm = mcolors.BoundaryNorm(bounds, cmap.N)
 
         fig, (ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(1,6, figsize = (30,6))
 
@@ -118,7 +122,7 @@ class Pseudomasks():
         ax2.set_yticks([])
         ax2.set_title('CAM')
 
-        ax3.imshow(pixels_activated)
+        ax3.imshow(pixels_activated, cmap=cmap, norm=norm)
         ax3.set_xticks([])
         ax3.set_yticks([])
         ax3.set_title('Activated cells')
@@ -128,19 +132,23 @@ class Pseudomasks():
         ax4.set_yticks([])
         ax4.set_title('Superpixels')
 
-        ax5.imshow(pseudomask)
+        ax5.imshow(pseudomask, cmap=cmap, norm=norm)
         ax5.set_xticks([])
         ax5.set_yticks([])
         ax5.set_title('Pseudomask')
 
-        ax6.imshow(gt.squeeze(0).permute(1,2,0).long().numpy())
+        ax6.imshow(gt.squeeze(0).permute(1,2,0).long().numpy(), cmap=cmap, norm=norm)
         ax6.set_xticks([])
         ax6.set_yticks([])
         ax6.set_title('Ground Truth')
 
         plt.tight_layout()
-        wandb.log({'pseudomask': fig})
-        plt.close()
+        plt.show()
+
+        # TODO: restore original block below (remove above)
+        # plt.tight_layout()
+        # wandb.log({'pseudomask': fig})
+        # plt.close()
 
     def calc_metrics(self, pseudomask, gt):
         # Jaccard index (aka Intersection over Union - IoU) is the most common semantic seg metric
