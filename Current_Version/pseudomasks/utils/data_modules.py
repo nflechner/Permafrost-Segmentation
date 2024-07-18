@@ -117,13 +117,11 @@ class TestSet(Dataset):
         self.normalize = normalize
 
         # configure labels file.
-        # only use samples with >5% palsa, where MS-Backe difference is <10%
+        # only use samples where MS-Backe difference is <10%
         unfiltered_labels_df = pd.read_csv(self.labels_path, index_col=0)
         self.labels_df = unfiltered_labels_df.loc[
-            (unfiltered_labels_df['difference']<10) & 
-            (unfiltered_labels_df['palsa_percentage']>5)
-            ]
-        
+            (unfiltered_labels_df['difference']<10)]
+
 
     def __len__(self):
         return len(self.labels_df)
@@ -158,8 +156,8 @@ class TestSet(Dataset):
         if self.normalize:
             # use dataset wide calculated means and standard deviations
             if str(self.depth_dir).endswith('hs'):
-                transforms.Normalize(mean=[74.90, 85.26, 80.06,179.18],
-                                     std=[15.05, 13.88, 12.01,10.65])
+                transforms.Normalize(mean=[74.90, 85.26, 80.06, 179.18],
+                                     std=[15.05, 13.88, 12.01, 10.65])
                 pass
             if str(self.depth_dir).endswith('dem'):
                 transforms.Normalize(mean=[74.90, 85.26, 80.06,608.95],
