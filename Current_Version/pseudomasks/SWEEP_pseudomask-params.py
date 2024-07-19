@@ -34,10 +34,11 @@ im_size = 200
 low_pals_in_val = False
 normalize = True
 depth_layer = 'hs'
-cam_threshold_factor = 0.95
-overlap_threshold = 0.3
-snic_seeds = 100
-snic_compactness = 10
+min_palsa_positive_samples = "TBD" #TODO fill in after hyperparam gridsearch
+weight_decay = "TBD" #TODO fill in after hyperparam gridsearch
+lr = "TBD" #TODO fill in after hyperparam gridsearch
+lr_gamma = "TBD" #TODO fill in after hyperparam gridsearch
+augment = "TBD" #TODO fill in after hyperparam gridsearch
 
 # use this path when using vs code debugger.
 # config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
@@ -59,14 +60,13 @@ labels_file = os.path.join(parent_dir, 'palsa_labels.csv')
 
 sweep_configuration = {
     "method": "bayes",
-    "name": "focused_hyperparam_sweep",
+    "name": "pseudomask_params_sweep",
     "metric": {"goal": "maximize", "name": "test_mean_jaccard"},
     "parameters": {
-        "min_palsa_positive_samples": {"max": 7, "min": 2},
-        "weight_decay": {"max": 0.1, "min": 0.01},
-        "lr": {"max": 0.00001, "min": 0.000001},
-        "lr_gamma": {"max": 1, "min": 0.5},
-        "augment": {"values": [True, False]},
+        "cam_threshold_factor": {"max": 2, "min": 0.5},
+        "overlap_threshold": {"max": 0.9, "min": 0.01},
+        "snic_seeds": {"values": [100,200,500,1000]},
+        "snic_compactness": {"values": [5,10,15,20]}
     },
 }
 
@@ -78,11 +78,10 @@ sweep_id = wandb.sweep(sweep=sweep_configuration, project="VGG_CAMs")
 
 def train_test_model():
 
-    min_palsa_positive_samples = wandb.config.min_palsa_positive_samples
-    weight_decay = wandb.config.weight_decay
-    lr = wandb.config.lr
-    lr_gamma = wandb.config.lr_gamma
-    augment = wandb.config.augment
+    cam_threshold_factor = wandb.config.cam_threshold_factor
+    overlap_threshold = wandb.config.overlap_threshold
+    snic_seeds = wandb.config.snic_seeds
+    snic_compactness = wandb.config.snic_compactness
 
     run = wandb.init(
         # Set the project where this run will be logged
@@ -107,7 +106,7 @@ def train_test_model():
             "snic_seeds": snic_seeds,
             "snic_compactness": snic_compactness
             },
-            tags=['FocussedGridsearch']
+            tags=['PseudomaskParamSearch']
     )
 
     # configure dataloaders #
