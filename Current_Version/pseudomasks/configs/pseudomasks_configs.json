@@ -20,9 +20,10 @@
         "depth_layer": "dem"
     },
     "pseudomasks": {
-        "cam_threshold_factor": 0.5, 
-        "overlap_threshold": 0.5,
+        "cam_threshold_factor": 0.95, 
+        "overlap_threshold": 0.3,
         "snic_seeds": 100,
-        "snic_compactness": 10
+        "snic_compactness": 10,
+        "std_from_mean": 2
     }
 }
