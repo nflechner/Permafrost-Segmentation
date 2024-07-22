@@ -38,6 +38,7 @@ cam_threshold_factor = 0.95
 overlap_threshold = 0.3
 snic_seeds = 100
 snic_compactness = 10
+std_from_mean = 2
 
 # use this path when using vs code debugger.
 # config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
@@ -105,7 +106,8 @@ def train_test_model():
             "cam_threshold_factor": cam_threshold_factor,
             "overlap_threshold": overlap_threshold,
             "snic_seeds": snic_seeds,
-            "snic_compactness": snic_compactness
+            "snic_compactness": snic_compactness,
+            "std_from_mean": std_from_mean
             },
             tags=['FocussedGridsearch']
     )
@@ -140,7 +142,7 @@ def train_test_model():
     test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
 
     pseudomask_generator = Pseudomasks(test_loader, cam_threshold_factor, overlap_threshold,
-                                        snic_seeds, snic_compactness, finetuned = finetune)
+                                        snic_seeds, snic_compactness, finetune, std_from_mean)
     pseudomask_generator.model_from_dict(best_model)
     pseudomask_generator.test_loop(test_loader)
 

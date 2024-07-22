@@ -16,10 +16,11 @@ from utils.data_modules import SaveFeatures
 
 class Pseudomasks():
     def __init__(self, test_loader, cam_threshold, overlap_threshold,
-                 snic_seeds, snic_compactness, finetuned):
+                 snic_seeds, snic_compactness, finetuned, std_from_mean):
 
         self.test_loader = test_loader
         self.cam_threshold = cam_threshold
+        self.std_from_mean = std_from_mean
         self.overlap_threshold= overlap_threshold
         self.snic_seeds = snic_seeds
         self.snic_compactness = snic_compactness
@@ -97,10 +98,18 @@ class Pseudomasks():
             scale_factor = im.shape[3]/arr.shape[3],
             mode='bilinear'
         ).cpu().detach()
-        print(f'has max activation {pals_acts.max()} and mean {pals_acts.mean()}')
+        
+        # select pixels based on activation threshold
+        # if we include an image-specific threshold 
+        if self.std_from_mean: 
+            im_based_act_threshold = pals_acts.view(-1).mean() + self.std_from_mean * torch.std(pals_acts, dim=None)
+            max_thresh = max([self.cam_threshold, im_based_act_threshold])
+            pixels_activated = torch.where(torch.Tensor(pals_acts) > max_thresh, 1, 0).squeeze(0).permute(1,2,0).numpy()
+         # if we use the global threshold 
+        else:
+            pixels_activated = torch.where(torch.Tensor(pals_acts) > self.cam_threshold, 1, 0).squeeze(0).permute(1,2,0).numpy()
 
-        activation_threshold = self.cam_threshold
-        pixels_activated = torch.where(torch.Tensor(pals_acts) > activation_threshold.cpu(), 1, 0).squeeze(0).permute(1,2,0).numpy()
+        print(f"maximum activation = {torch.max(pals_acts)}") #TODO remove this line
 
         # Plot image with CAM
         cpu_img = im.squeeze().cpu().detach().permute(1,2,0).long().numpy()
@@ -109,9 +118,7 @@ class Pseudomasks():
 
         if save_plot: self.generate_plot(cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt)
         
-        return pseudomask, (pals_acts.max(), pals_acts.mean())
-
-        # return pseudomask
+        return pseudomask
 
     def generate_plot(self, cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt):
 

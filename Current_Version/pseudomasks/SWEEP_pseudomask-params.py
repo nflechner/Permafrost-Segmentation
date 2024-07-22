@@ -66,7 +66,8 @@ sweep_configuration = {
         "cam_threshold_factor": {"max": 2, "min": 0.5},
         "overlap_threshold": {"max": 0.9, "min": 0.01},
         "snic_seeds": {"values": [100,200,500,1000]},
-        "snic_compactness": {"values": [5,10,15,20]}
+        "snic_compactness": {"values": [5,10,15,20]},
+        "std_from_mean": {"values": [0,0.5,1,1.5,2,2.5]}
     },
 }
 
@@ -82,6 +83,7 @@ def train_test_model():
     overlap_threshold = wandb.config.overlap_threshold
     snic_seeds = wandb.config.snic_seeds
     snic_compactness = wandb.config.snic_compactness
+    std_from_mean = wandb.config.std_from_mean
 
     run = wandb.init(
         # Set the project where this run will be logged
@@ -139,7 +141,7 @@ def train_test_model():
     test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
 
     pseudomask_generator = Pseudomasks(test_loader, cam_threshold_factor, overlap_threshold,
-                                        snic_seeds, snic_compactness, finetuned = finetune)
+                                        snic_seeds, snic_compactness, finetune, std_from_mean)
     pseudomask_generator.model_from_dict(best_model)
     pseudomask_generator.test_loop(test_loader)
 

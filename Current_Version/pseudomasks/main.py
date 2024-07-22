@@ -20,7 +20,7 @@ from utils.data_modules import ImageDataset, TestSet, filter_dataset
 ## load configs ##
 ##################
 
-config_path = os.path.join(configs_dir, configsfile)
+config_path = "/Users/nadja/Documents/UU/Thesis/Permafrost-Segmentation/Current_Version/pseudomasks/configs/classifier_configs.json"
 with open(config_path, 'r') as config_file:
     configs = json.load(config_file)
 
@@ -60,6 +60,7 @@ depth_layer = config_data.get('depth_layer')
 config_pseudomasks = configs.get('pseudomasks', {})
 # assign pseudomasks configs
 cam_threshold_factor = config_pseudomasks.get('cam_threshold_factor')
+std_from_mean = config_pseudomasks.get('std_from_mean')
 overlap_threshold = config_pseudomasks.get('overlap_threshold')
 snic_seeds = config_pseudomasks.get('snic_seeds')
 snic_compactness = config_pseudomasks.get('snic_compactness')
@@ -89,7 +90,8 @@ run = wandb.init(
         "cam_threshold_factor": cam_threshold_factor,
         "overlap_threshold": overlap_threshold,
         "snic_seeds": snic_seeds,
-        "snic_compactness": snic_compactness
+        "snic_compactness": snic_compactness,
+        "std_from_mean": std_from_mean
         },
         tags=['FinalGridsearchWTest']
 )
@@ -156,7 +158,7 @@ test_set = TestSet(depth_layer, testset_dir, normalize)
 test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
 
 pseudomask_generator = Pseudomasks(test_loader, cam_threshold_factor, overlap_threshold,
-                                    snic_seeds, snic_compactness, finetuned = finetune)
+                                    snic_seeds, snic_compactness, finetune, std_from_mean)
 pseudomask_generator.model_from_dict(best_model)
 pseudomask_generator.test_loop(test_loader)
 
