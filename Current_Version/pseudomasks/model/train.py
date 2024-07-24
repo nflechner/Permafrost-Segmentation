@@ -18,7 +18,7 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = lr_scheduler.ExponentialLR(optimizer, gamma=lr_gamma)
-    loss_function = nn.CrossEntropyLoss(weights = torch.tensor([1.19, 6.19]))
+    loss_function = nn.CrossEntropyLoss(weight = torch.tensor([1.19, 6.19]).to(device))
 
     # define metrics
     Accuracy = torchmetrics.Accuracy(task="multiclass", num_classes=2).to(device)
