@@ -7,8 +7,7 @@ import wandb
 from pysnic.algorithms.snic import snic
 from skimage.segmentation import mark_boundaries
 from torch.autograd import Variable
-from torchmetrics.classification import MulticlassJaccardIndex
-from torchmetrics import Accuracy, F1Score
+from torchmetrics.classification import MulticlassJaccardIndex, MulticlassAccuracy, MulticlassF1Score
 
 from model.cnn_classifier import model_4D
 from utils.data_modules import SaveFeatures
@@ -62,9 +61,13 @@ class Pseudomasks():
 
     def test_loop(self, test_loader):
 
-        running_jaccard = 0
-        running_accuracy = 0
-        running_F1 = 0
+        running_jaccard_nopalsa = 0
+        running_accuracy_nopalsa = 0
+        running_F1_nopalsa = 0
+
+        running_jaccard_palsa = 0
+        running_accuracy_palsa = 0
+        running_F1_palsa = 0
 
         for im, lab, _, gt_mask in test_loader:
             pseudomask = self.generate_mask(im, gt_mask, save_plot=False) # TODO make saveplot true sometimes
@@ -72,13 +75,23 @@ class Pseudomasks():
             generated_mask = torch.Tensor(pseudomask).int().view(400,400).to(self.device)
             groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400).to(self.device)
             jaccard, accuracy, F1 = self.calc_metrics(generated_mask, groundtruth_mask)
-            running_jaccard += jaccard
-            running_accuracy += accuracy
-            running_F1 += F1
 
-        wandb.log({"test_mean_jaccard": running_jaccard / len(test_loader.dataset)})
-        wandb.log({"test_mean_accuracy": running_accuracy / len(test_loader.dataset)})
-        wandb.log({"test_mean_F1": running_F1 / len(test_loader.dataset)})
+            # unpack tuples of per class calculated metrics
+            running_jaccard_nopalsa += jaccard[0]
+            running_accuracy_nopalsa += accuracy[0]
+            running_F1_nopalsa += F1[0]
+
+            running_jaccard_palsa += jaccard[1]
+            running_accuracy_palsa += accuracy[1]
+            running_F1_palsa += F1[1]
+
+        wandb.log({"test_jaccard_nopalsa": running_jaccard_nopalsa / len(test_loader.dataset)})
+        wandb.log({"test_accuracy_nopalsa": running_accuracy_nopalsa / len(test_loader.dataset)})
+        wandb.log({"test_F1_nopalsa": running_F1_nopalsa / len(test_loader.dataset)})
+
+        wandb.log({"test_jaccard_palsa": running_jaccard_palsa / len(test_loader.dataset)})
+        wandb.log({"test_accuracy_palsa": running_accuracy_palsa / len(test_loader.dataset)})
+        wandb.log({"test_F1_palsa": running_F1_palsa / len(test_loader.dataset)})
 
     def generate_mask(self, im, gt, save_plot: bool):
 
@@ -108,8 +121,6 @@ class Pseudomasks():
          # if we use the global threshold 
         else:
             pixels_activated = torch.where(torch.Tensor(pals_acts) > self.cam_threshold, 1, 0).squeeze(0).permute(1,2,0).numpy()
-
-        print(f"maximum activation = {torch.max(pals_acts)}") #TODO remove this line
 
         # Plot image with CAM
         cpu_img = im.squeeze().cpu().detach().permute(1,2,0).long().numpy()
@@ -217,9 +228,9 @@ class Pseudomasks():
 
     def calc_metrics(self, pseudomask, gt):
         # Jaccard index (aka Intersection over Union - IoU) is the most common semantic seg metric
-        jaccard = MulticlassJaccardIndex(num_classes=2).to(self.device)
-        accuracy = Accuracy(task="multiclass", num_classes=2).to(self.device)
-        F1 = F1Score(task="multiclass", num_classes=2).to(self.device)
+        jaccard = MulticlassJaccardIndex(num_classes=2, average=None).to(self.device)
+        accuracy = MulticlassAccuracy(num_classes=2, average=None).to(self.device)
+        F1 = MulticlassF1Score(num_classes=2, average=None).to(self.device)
 
         return jaccard(pseudomask, gt), accuracy(pseudomask, gt), F1(pseudomask, gt)
 

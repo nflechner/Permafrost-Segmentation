@@ -63,10 +63,10 @@ sweep_configuration = {
     "name": "focused_hyperparam_sweep",
     "metric": {"goal": "maximize", "name": "test_mean_jaccard"},
     "parameters": {
-        "min_palsa_positive_samples": {"max": 7, "min": 2},
+        "min_palsa_positive_samples": {"max": 7.0, "min": 2.0},
         "weight_decay": {"max": 0.1, "min": 0.01},
         "lr": {"max": 0.00001, "min": 0.000001},
-        "lr_gamma": {"max": 1, "min": 0.5},
+        "lr_gamma": {"max": 1.0, "min": 0.5},
         "augment": {"values": [True, False]},
     },
 }
@@ -79,27 +79,19 @@ sweep_id = wandb.sweep(sweep=sweep_configuration, project="VGG_CAMs")
 
 def train_test_model():
 
-    min_palsa_positive_samples = wandb.config.min_palsa_positive_samples
-    weight_decay = wandb.config.weight_decay
-    lr = wandb.config.lr
-    lr_gamma = wandb.config.lr_gamma
-    augment = wandb.config.augment
-
     run = wandb.init(
-        # Set the project where this run will be logged
-        project="VGG_CAMs",
         # Track hyperparameters and run metadata
         config={
-            "learning_rate": lr,
-            "lr_gamma": lr_gamma,
+            # "learning_rate": lr,
+            # "lr_gamma": lr_gamma,
             "epochs": num_epochs,
             "batch_size": batch_size,
             "n_samples": n_samples,
             "finetune": finetune,
-            "weight_decay": weight_decay,
+            # "weight_decay": weight_decay,
             "im_size": im_size,
-            "min_palsa_positive_samples": min_palsa_positive_samples,
-            "augment": augment,
+            # "min_palsa_positive_samples": min_palsa_positive_samples,
+            # "augment": augment,
             "normalize": normalize,
             "low_pals_in_val": low_pals_in_val,
             "depth_layer": depth_layer,
@@ -111,6 +103,12 @@ def train_test_model():
             },
             tags=['FocussedGridsearch']
     )
+
+    min_palsa_positive_samples = wandb.config.min_palsa_positive_samples
+    weight_decay = wandb.config.weight_decay
+    lr = wandb.config.lr
+    lr_gamma = wandb.config.lr_gamma
+    augment = wandb.config.augment
 
     # configure dataloaders #
     train_files, val_files = filter_dataset(labels_file, augment, min_palsa_positive_samples, low_pals_in_val, n_samples)

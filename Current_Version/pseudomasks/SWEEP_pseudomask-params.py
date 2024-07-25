@@ -79,15 +79,7 @@ sweep_id = wandb.sweep(sweep=sweep_configuration, project="VGG_CAMs")
 
 def train_test_model():
 
-    cam_threshold_factor = wandb.config.cam_threshold_factor
-    overlap_threshold = wandb.config.overlap_threshold
-    snic_seeds = wandb.config.snic_seeds
-    snic_compactness = wandb.config.snic_compactness
-    std_from_mean = wandb.config.std_from_mean
-
     run = wandb.init(
-        # Set the project where this run will be logged
-        project="VGG_CAMs",
         # Track hyperparameters and run metadata
         config={
             "learning_rate": lr,
@@ -103,13 +95,19 @@ def train_test_model():
             "normalize": normalize,
             "low_pals_in_val": low_pals_in_val,
             "depth_layer": depth_layer,
-            "cam_threshold_factor": cam_threshold_factor,
-            "overlap_threshold": overlap_threshold,
-            "snic_seeds": snic_seeds,
-            "snic_compactness": snic_compactness
+            # "cam_threshold_factor": cam_threshold_factor,
+            # "overlap_threshold": overlap_threshold,
+            # "snic_seeds": snic_seeds,
+            # "snic_compactness": snic_compactness
             },
             tags=['PseudomaskParamSearch']
     )
+
+    cam_threshold_factor = wandb.config.cam_threshold_factor
+    overlap_threshold = wandb.config.overlap_threshold
+    snic_seeds = wandb.config.snic_seeds
+    snic_compactness = wandb.config.snic_compactness
+    std_from_mean = wandb.config.std_from_mean
 
     # configure dataloaders #
     train_files, val_files = filter_dataset(labels_file, augment, min_palsa_positive_samples, low_pals_in_val, n_samples)
