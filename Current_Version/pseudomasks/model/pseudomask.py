@@ -122,51 +122,98 @@ class Pseudomasks():
 
     def generate_plot(self, cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt):
 
-        # Plotting fucntion to visualize the pseudomask generation process (and intermediates)
-        cmap = mcolors.ListedColormap(['black', 'lightblue'])
         bounds = [0, 0.5, 1]
-        norm = mcolors.BoundaryNorm(bounds, cmap.N)
+        overlap_bounds = [0, 0.5, 4, 11]
 
-        fig, (ax1, ax2, ax3, ax4, ax5, ax6) = plt.subplots(1,6, figsize = (30,6))
+        cmap_cam = mcolors.ListedColormap(['lightblue', 'purple'])
+        norm_cam = mcolors.BoundaryNorm(bounds, cmap_cam.N)
 
-        ax1.imshow(cpu_img[:,:,:3])
+        cmap_snic = mcolors.ListedColormap(['lightblue', 'darkblue'])
+        norm_snic = mcolors.BoundaryNorm(bounds, cmap_snic.N)
+
+        cmap_overlap = mcolors.ListedColormap(['lightblue', 'darkblue', 'purple'])
+        norm_overlap = mcolors.BoundaryNorm(overlap_bounds, cmap_overlap.N)
+
+        # Create figure and gridspec
+        fig = plt.figure(figsize=(51, 14))  # Adjust figure size as needed
+        gs = fig.add_gridspec(2, 7)
+
+        # RGB input
+        ax0 = fig.add_subplot(gs[:, 0])
+        ax0.imshow(cpu_img[:,:,:3])
+        ax0.set_xticks([])
+        ax0.set_yticks([])
+        ax0.set_title(f'RGB input', size = 22)
+
+        # Hillshade input
+        ax1 = fig.add_subplot(gs[:, 1])
+        ax1.imshow(cpu_img[:,:,3], cmap = 'Greys')
         ax1.set_xticks([])
         ax1.set_yticks([])
-        ax1.set_title('original image')
+        ax1.set_title(f'Hillshade input', size = 22)
 
-        ax2.imshow(cpu_img[:,:,:3])
-        ax2.imshow(pals_acts.view(im.shape[3], im.shape[3], 1), alpha=.4, cmap='jet')
-        ax2.set_xticks([])
-        ax2.set_yticks([])
-        ax2.set_title('CAM')
+        # CAM
+        ax2a = fig.add_subplot(gs[0, 2])
+        ax2a.imshow(cpu_img[:,:,:3])
+        ax2a.imshow(pals_acts.view(im.shape[3], im.shape[3], 1), alpha=.4, cmap='jet')
+        ax2a.set_xticks([])
+        ax2a.set_yticks([])
+        ax2a.set_title(f'CAM', size = 22)
 
-        ax3.imshow(pixels_activated, cmap=cmap, norm=norm)
-        ax3.set_xticks([])
-        ax3.set_yticks([])
-        ax3.set_title('Activated cells')
+        # Activation mask
+        ax2b = fig.add_subplot(gs[0, 3])
+        ax2b.imshow(pixels_activated, cmap=cmap_cam, norm=norm_cam)
+        ax2b.set_xticks([])
+        ax2b.set_yticks([])
+        ax2b.set_title(f'Activated cells', size = 22)
 
-        ax4.imshow(mark_boundaries(cpu_img[:,:,:3], superpixels)) # TODO change so image is actually plotted.
+        # Superpixels
+        boundaries = mark_boundaries(cpu_img[:,:,:3], superpixels)
+        binary_boundaries = np.where(boundaries[:,:,0]>0.5, 1, 0)
+        combined_image = np.copy(cpu_img[:,:,:3])
+        combined_image[binary_boundaries == 1] = [0,0,139]
+
+        # Superpixels on RGB
+        ax3a = fig.add_subplot(gs[1, 2])
+        ax3a.imshow(combined_image)
+        ax3a.set_xticks([])
+        ax3a.set_yticks([])
+        ax3a.set_title(f'SNIC output', size = 22)
+
+        # Superpixel borders
+        ax3b = fig.add_subplot(gs[1, 3])
+        ax3b.imshow(binary_boundaries, cmap=cmap_snic, norm=norm_snic)
+        ax3b.set_xticks([])
+        ax3b.set_yticks([])
+        ax3b.set_title(f'Superpixels', size = 22)
+
+        # Overlap
+        overlap = np.copy(binary_boundaries)
+        overlap[np.squeeze(pixels_activated) == 1] = 10
+        ax4 = fig.add_subplot(gs[:, 4])
+        ax4.imshow(overlap, cmap=cmap_overlap, norm=norm_overlap)
         ax4.set_xticks([])
         ax4.set_yticks([])
-        ax4.set_title('Superpixels')
+        ax4.set_title(f'Overlap', size = 22)
 
-        ax5.imshow(pseudomask, cmap=cmap, norm=norm)
+        # Pseudomask
+        ax5 = fig.add_subplot(gs[:, 5])
+        ax5.imshow(pseudomask, cmap=cmap_cam, norm=norm_cam)
         ax5.set_xticks([])
         ax5.set_yticks([])
-        ax5.set_title('Pseudomask')
+        ax5.set_title(f'Pseudomask', size = 22)
 
-        ax6.imshow(gt.squeeze(0).permute(1,2,0).long().numpy(), cmap=cmap, norm=norm)
+        # Ground truth
+        ax6 = fig.add_subplot(gs[:, 6])
+        ax6.imshow(gt.squeeze(0).permute(1,2,0).long().numpy(), cmap=cmap_cam, norm=norm_cam)
         ax6.set_xticks([])
         ax6.set_yticks([])
-        ax6.set_title('Ground Truth')
+        ax6.set_title(f'Ground truth', size = 22)
+
 
         plt.tight_layout()
-        plt.show()
-
-        # TODO: restore original block below (remove above)
-        # plt.tight_layout()
-        # wandb.log({'pseudomask': fig})
-        # plt.close()
+        wandb.log({'pseudomask': fig})
+        plt.close()
 
     def calc_metrics(self, pseudomask, gt):
         # Jaccard index (aka Intersection over Union - IoU) is the most common semantic seg metric
