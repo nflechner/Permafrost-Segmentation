@@ -26,13 +26,14 @@ with open(config_path, 'r') as config_file:
 # load hyperparams configs dictionary
 config_hyperparams = configs.get('hyperparams', {})
 # assign hyperparams
-n_samples = 10200
+n_samples = 13980
 batch_size = 20
 num_epochs = 20
 finetune = False
 im_size = 200
 low_pals_in_val = False
 normalize = True
+augment = True
 depth_layer = 'hs'
 cam_threshold_factor = 0.95
 overlap_threshold = 0.3
@@ -60,14 +61,13 @@ labels_file = os.path.join(parent_dir, 'palsa_labels.csv')
 
 sweep_configuration = {
     "method": "bayes",
-    "name": "focused_hyperparam_sweep",
-    "metric": {"goal": "maximize", "name": "test_mean_jaccard"},
+    "name": "Palsa_jaccard_hyperparam_sweep",
+    "metric": {"goal": "maximize", "name": "test_jaccard_palsa"},
     "parameters": {
         "min_palsa_positive_samples": {"max": 7.0, "min": 2.0},
         "weight_decay": {"max": 0.1, "min": 0.01},
         "lr": {"max": 0.00001, "min": 0.000001},
-        "lr_gamma": {"max": 1.0, "min": 0.5},
-        "augment": {"values": [True, False]},
+        "lr_gamma": {"max": 1.0, "min": 0.5}
     },
 }
 
@@ -91,7 +91,7 @@ def train_test_model():
             # "weight_decay": weight_decay,
             "im_size": im_size,
             # "min_palsa_positive_samples": min_palsa_positive_samples,
-            # "augment": augment,
+            "augment": augment,
             "normalize": normalize,
             "low_pals_in_val": low_pals_in_val,
             "depth_layer": depth_layer,
@@ -108,7 +108,6 @@ def train_test_model():
     weight_decay = wandb.config.weight_decay
     lr = wandb.config.lr
     lr_gamma = wandb.config.lr_gamma
-    augment = wandb.config.augment
 
     # configure dataloaders #
     train_files, val_files = filter_dataset(labels_file, augment, min_palsa_positive_samples, low_pals_in_val, n_samples)
