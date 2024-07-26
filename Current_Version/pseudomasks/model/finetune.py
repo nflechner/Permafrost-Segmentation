@@ -11,7 +11,9 @@ import wandb
 from torch.autograd import Variable
 
 
-def FinetuneLoop(model, train_loader, val_loader, lr, weight_decay, lr_gamma, num_epochs):
+def FinetuneLoop(model, train_loader, val_loader, lr, 
+                 weight_decay, lr_gamma, num_epochs, 
+                 activation_threshold, num_layers_freeze):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -22,20 +24,19 @@ def FinetuneLoop(model, train_loader, val_loader, lr, weight_decay, lr_gamma, nu
     # redefine model to finetune
     ############################
 
-    model.classifier = nn.Sequential(
-            nn.Conv2d(2, 2, kernel_size=3, padding=1),
-            nn.BatchNorm2d(2),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(2, 2, kernel_size=3, padding=1))
-    model.to(device)
-    ########## DO I WANT TO FREEZE LAYERS???
+    model.classifier = nn.Identity()
+    for idx, param in enumerate(model.parameters()):
+        if idx == num_layers_freeze:
+            break
+        else: 
+            param.requires_grad = False
 
+    model.to(device)
 
     #######################
     # model training loop #
     #######################
 
-    activation_threshold = 1.5
     min_val_MSE = 1000000
 
     print('Finetuning model ...')
