@@ -89,9 +89,9 @@ class Pseudomasks():
         wandb.log({"test_accuracy_nopalsa": running_accuracy_nopalsa / len(test_loader.dataset)})
         wandb.log({"test_F1_nopalsa": running_F1_nopalsa / len(test_loader.dataset)})
 
-        wandb.log({"test_jaccard_palsa": running_jaccard_palsa / len(test_loader.dataset)})
-        wandb.log({"test_accuracy_palsa": running_accuracy_palsa / len(test_loader.dataset)})
-        wandb.log({"test_F1_palsa": running_F1_palsa / len(test_loader.dataset)})
+        wandb.log({"test_jaccard_palsa": running_jaccard_palsa / 107}) # hardcoded the num of samples in testdata that have palsa
+        wandb.log({"test_accuracy_palsa": running_accuracy_palsa / 107}) # TODO maybe not make it hardcoded.. 
+        wandb.log({"test_F1_palsa": running_F1_palsa / 107})
 
     def generate_mask(self, im, gt, save_plot: bool):
 
