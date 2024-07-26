@@ -61,7 +61,7 @@ labels_file = os.path.join(parent_dir, 'palsa_labels.csv')
 
 sweep_configuration = {
     "method": "bayes",
-    "name": "Palsa_jaccard_hyperparam_sweep",
+    "name": "PalsaJac_verifGT_hyperparam_sweep",
     "metric": {"goal": "maximize", "name": "test_jaccard_palsa"},
     "parameters": {
         "min_palsa_positive_samples": {"max": 7.0, "min": 2.0},
@@ -101,7 +101,7 @@ def train_test_model():
             "snic_compactness": snic_compactness,
             "std_from_mean": std_from_mean
             },
-            tags=['FocussedGridsearch']
+            tags=['FocussedGridsearchPalsaMetrics']
     )
 
     min_palsa_positive_samples = wandb.config.min_palsa_positive_samples
