@@ -45,6 +45,8 @@ lr = config_hyperparams.get('lr')
 lr_gamma = config_hyperparams.get('lr_gamma')
 weight_decay = config_hyperparams.get('weight_decay')
 finetune = config_hyperparams.get('finetune')
+finetune_threshold = config_hyperparams.get('finetune_threshold')
+num_layers_freeze = config_hyperparams.get('num_layers_freeze')
 
 # load data configs dictionary
 config_data = configs.get('data', {})
@@ -91,7 +93,9 @@ run = wandb.init(
         "overlap_threshold": overlap_threshold,
         "snic_seeds": snic_seeds,
         "snic_compactness": snic_compactness,
-        "std_from_mean": std_from_mean
+        "std_from_mean": std_from_mean,
+        "finetune_threshold": finetune_threshold,
+        "num_layers_freeze": num_layers_freeze
         },
         tags=['FinalGridsearchWTest']
 )
@@ -118,7 +122,6 @@ model = model_4D()
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model.to(device)
 
-
 ##############################
 # Train model on binary data #
 ##############################
@@ -141,7 +144,8 @@ if finetune:
     model.load_state_dict(best_model)
     # finetune pretrained model (overwrite best_model to evaluate)
     best_model = FinetuneLoop(model, train_loader, val_loader,
-                                lr, weight_decay, lr_gamma, num_epochs)
+                                lr, weight_decay, lr_gamma, num_epochs, 
+                                finetune_threshold, num_layers_freeze)
     # after all epochs, save the best model as an artifact to wandb
     torch.save(best_model, '/home/nadjaflechner/models/model.pth')
     artifact = wandb.Artifact('finetuned_model', type='model')

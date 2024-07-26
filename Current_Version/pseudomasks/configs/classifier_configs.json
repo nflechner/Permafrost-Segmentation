@@ -11,7 +11,9 @@
         "lr": 0.00001,
         "lr_gamma": 0.93,
         "weight_decay": 0.04,
-        "finetune": true
+        "finetune": true,
+        "finetune_threshold": 0.8,
+        "num_layers_freeze": 18
     },
     "data": {
         "im_size": 200,

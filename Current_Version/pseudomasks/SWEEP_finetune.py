@@ -75,7 +75,9 @@ sweep_configuration = {
         "min_palsa_positive_samples": {"max": 7.0, "min": 2.0},
         "weight_decay": {"max": 0.1, "min": 0.01},
         "lr": {"max": 0.00001, "min": 0.000001},
-        "lr_gamma": {"max": 1.0, "min": 0.5}
+        "lr_gamma": {"max": 1.0, "min": 0.5},
+        "finetune_threshold": {"max": 5, "min": 0.5},
+        "num_layers_freeze": {"values": [11,14,18,21]}
     },
 }
 
@@ -116,6 +118,8 @@ def finetune_model():
     weight_decay = wandb.config.weight_decay
     lr = wandb.config.lr
     lr_gamma = wandb.config.lr_gamma
+    finetune_threshold = wandb.config.finetune_threshold
+    num_layers_freeze = wandb.config.num_layers_freeze
 
     # configure dataloaders #
     train_files, val_files = filter_dataset(labels_file, augment, min_palsa_positive_samples, low_pals_in_val, n_samples)
@@ -138,7 +142,8 @@ def finetune_model():
     model.load_state_dict(state_dict)
     # finetune pretrained model (overwrite best_model to evaluate)
     best_model = FinetuneLoop(model, train_loader, val_loader,
-                                lr, weight_decay, lr_gamma, num_epochs)
+                                lr, weight_decay, lr_gamma, num_epochs, 
+                                finetune_threshold, num_layers_freeze)
     # after all epochs, save the best model as an artifact to wandb
     torch.save(best_model, '/home/nadjaflechner/models/model.pth')
     artifact = wandb.Artifact('finetuned_model', type='model')
