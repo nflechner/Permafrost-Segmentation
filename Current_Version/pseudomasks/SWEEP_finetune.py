@@ -48,6 +48,8 @@ overlap_threshold = 0.3
 snic_seeds = 100
 snic_compactness = 10
 std_from_mean = 2
+min_palsa_positive_samples = 6.2
+
 
 # use this path when using vs code debugger.
 # config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
@@ -69,12 +71,11 @@ labels_file = os.path.join(parent_dir, 'palsa_labels.csv')
 
 sweep_configuration = {
     "method": "bayes",
-    "name": "Palsa_jaccard_hyperparam_sweep",
+    "name": "Finetune_sweep",
     "metric": {"goal": "maximize", "name": "test_jaccard_palsa"},
     "parameters": {
-        "min_palsa_positive_samples": {"max": 7.0, "min": 2.0},
         "weight_decay": {"max": 0.1, "min": 0.01},
-        "lr": {"max": 0.00001, "min": 0.000001},
+        "lr": {"values": [0.000001, 0.00001,0.0001,0.001]},
         "lr_gamma": {"max": 1.0, "min": 0.5},
         "finetune_threshold": {"max": 5, "min": 0.5},
         "num_layers_freeze": {"values": [11,14,18,21]}
@@ -100,7 +101,7 @@ def finetune_model():
             "finetune": finetune,
             # "weight_decay": weight_decay,
             "im_size": im_size,
-            # "min_palsa_positive_samples": min_palsa_positive_samples,
+            "min_palsa_positive_samples": min_palsa_positive_samples,
             "augment": augment,
             "normalize": normalize,
             "low_pals_in_val": low_pals_in_val,
@@ -111,10 +112,9 @@ def finetune_model():
             "snic_compactness": snic_compactness,
             "std_from_mean": std_from_mean
             },
-            tags=['FocussedGridsearchPalsaMetrics']
+            tags=['FinetuneSweep']
     )
 
-    min_palsa_positive_samples = wandb.config.min_palsa_positive_samples
     weight_decay = wandb.config.weight_decay
     lr = wandb.config.lr
     lr_gamma = wandb.config.lr_gamma
@@ -131,7 +131,7 @@ def finetune_model():
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=True)
 
-    artifact = run.use_artifact('nadjaflechner/VGG_CAMs/classification_model:v62', type='model')
+    artifact = run.use_artifact('nadjaflechner/VGG_CAMs/classification_model:v139', type='model')
     artifact_dir = artifact.download()
     state_dict = torch.load(f"{artifact_dir}/model.pth")
 
