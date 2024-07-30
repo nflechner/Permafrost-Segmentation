@@ -30,11 +30,7 @@ class Pseudomasks():
     def init_model(self):
         model = model_4D()
         if self.finetuned:
-            model.classifier = nn.Sequential(
-                nn.Conv2d(2, 2, kernel_size=3, padding=1),
-                nn.BatchNorm2d(2),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(2, 2, kernel_size=3, padding=1))
+            model.classifier = nn.Identity()
         model.to(self.device)
         return model
 
@@ -96,9 +92,7 @@ class Pseudomasks():
     def generate_mask(self, im, gt, save_plot: bool):
 
         #get the last convolution
-        if not self.finetuned:
-            sf = SaveFeatures(self.model.features[-4])
-        else: sf = SaveFeatures(self.model.classifier[-1])
+        sf = SaveFeatures(self.model.features[-4])
         im = Variable(im).to(self.device)
         outputs = self.model(im).to(self.device)
 
