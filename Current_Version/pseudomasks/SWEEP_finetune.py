@@ -77,7 +77,7 @@ sweep_configuration = {
         "weight_decay": {"max": 0.1, "min": 0.01},
         "lr": {"values": [0.000001, 0.00001,0.0001,0.001]},
         "lr_gamma": {"max": 1.0, "min": 0.5},
-        "finetune_threshold": {"max": 5, "min": 0.5},
+        "finetune_threshold": {"max": 5.0, "min": 0.5},
         "num_layers_freeze": {"values": [11,14,18,21]}
     },
 }
