@@ -63,11 +63,11 @@ sweep_configuration = {
         "weight_decay": {"max": 0.1, "min": 0.01},
         "lr": {"max": 0.00001, "min": 0.000001},
         "lr_gamma": {"max": 1.0, "min": 0.5},
-        "cam_threshold_factor": {"max": 3, "min": 0.3},
+        "cam_threshold_factor": {"max": 3.0, "min": 0.3},
         "overlap_threshold": {"max": 0.9, "min": 0.01},
         "snic_seeds": {"values": [25,40,75,100,200,500,1000]},
         "snic_compactness": {"values": [1,5,10,18,23,29,40]},
-        "std_from_mean": {"max": 2.5, "min": 0}
+        "std_from_mean": {"max": 2.5, "min": 0.0}
     },
 }
 
