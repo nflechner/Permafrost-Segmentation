@@ -36,7 +36,7 @@ config_hyperparams = configs.get('hyperparams', {})
 # assign hyperparams
 n_samples = 13980
 batch_size = 20
-num_epochs = 20
+num_epochs = 6
 finetune = True
 im_size = 200
 low_pals_in_val = False
@@ -161,4 +161,4 @@ def finetune_model():
     pseudomask_generator.test_loop(test_loader)
 
 # Start sweep
-wandb.agent(sweep_id, function = finetune_model, count = 50)
+wandb.agent(sweep_id, function = finetune_model, count = 100)
