@@ -35,6 +35,9 @@ low_pals_in_val = False
 normalize = True
 augment = True
 depth_layer = 'hs'
+weight_decay = 0.098
+lr = 0.000005
+lr_gamma = 0.95
 
 # use this path when using vs code debugger.
 # config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
@@ -56,18 +59,15 @@ labels_file = os.path.join(parent_dir, 'palsa_labels.csv')
 
 sweep_configuration = {
     "method": "bayes",
-    "name": "End2EndGridsearch",
+    "name": "PseudomaskGridsearch",
     "metric": {"goal": "maximize", "name": "test_jaccard_palsa"},
     "parameters": {
-        "min_palsa_positive_samples": {"max": 7.0, "min": 2.0},
-        "weight_decay": {"max": 0.1, "min": 0.01},
-        "lr": {"max": 0.00001, "min": 0.000001},
-        "lr_gamma": {"max": 1.0, "min": 0.5},
-        "cam_threshold_factor": {"max": 3.0, "min": 0.3},
-        "overlap_threshold": {"max": 0.9, "min": 0.01},
-        "snic_seeds": {"values": [25,40,75,100,200,500,1000]},
-        "snic_compactness": {"values": [1,5,10,18,23,29,40]},
-        "std_from_mean": {"max": 2.5, "min": 0.0}
+        "min_palsa_positive_samples": {"values": [3.0,6.0]},
+        "cam_threshold_factor": {"max": 0.95, "min": 0.3},
+        "overlap_threshold": {"max": 0.4, "min": 0.01},
+        "snic_seeds": {"values": [20,40,60,80,100]},
+        "snic_compactness": {"max": 25, "min": 0},
+        "std_from_mean": {"max": 2.2, "min": 0.0}
     },
 }
 
@@ -82,32 +82,20 @@ def train_test_model():
     run = wandb.init(
         # Track hyperparameters and run metadata
         config={
-            # "learning_rate": lr,
-            # "lr_gamma": lr_gamma,
             "epochs": num_epochs,
             "batch_size": batch_size,
             "n_samples": n_samples,
             "finetune": finetune,
-            # "weight_decay": weight_decay,
             "im_size": im_size,
-            # "min_palsa_positive_samples": min_palsa_positive_samples,
             "augment": augment,
             "normalize": normalize,
             "low_pals_in_val": low_pals_in_val,
-            "depth_layer": depth_layer
-            # "cam_threshold_factor": cam_threshold_factor,
-            # "overlap_threshold": overlap_threshold,
-            # "snic_seeds": snic_seeds,
-            # "snic_compactness": snic_compactness,
-            # "std_from_mean": std_from_mean
+            "depth_layer": depth_layer            
             },
-            tags=['End2EndGridsearch']
+            tags=['PseudomaskGridsearch']
     )
 
     min_palsa_positive_samples = wandb.config.min_palsa_positive_samples
-    weight_decay = wandb.config.weight_decay
-    lr = wandb.config.lr
-    lr_gamma = wandb.config.lr_gamma
     cam_threshold_factor = wandb.config.cam_threshold_factor
     overlap_threshold = wandb.config.overlap_threshold
     snic_seeds = wandb.config.snic_seeds
@@ -149,4 +137,4 @@ def train_test_model():
     pseudomask_generator.test_loop(test_loader)
 
 # Start sweep
-wandb.agent(sweep_id, function = train_test_model, count = 100)
+wandb.agent(sweep_id, function = train_test_model, count = 65)
