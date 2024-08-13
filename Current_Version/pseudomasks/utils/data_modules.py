@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset
 from torchvision import transforms
-from PIL import Image
+# from PIL import Image
 
 ## POSSIBLY REPLACE ALL pil.image.open with rasterio.image.open
 
@@ -68,11 +68,11 @@ class ImageDataset(Dataset):
         RGB_img_path = os.path.join(self.RGB_dir, f"{img_name}.tif")
         hs_img_path = os.path.join(self.depth_dir, f"{img_name}.tif")
 
-        with Image.open(RGB_img_path) as RGB_src:
+        with rasterio.open(RGB_img_path) as RGB_src:
             # Read the image data
             RGB_img = RGB_src.read()
 
-        with Image.open(hs_img_path) as hs_src:
+        with rasterio.open(hs_img_path) as hs_src:
             # Read the image data
             hs_img = hs_src.read()
 
@@ -133,11 +133,11 @@ class TestSet(Dataset):
         RGB_img_path = os.path.join(self.RGB_dir, f"{img_name}.tif")
         hs_img_path = os.path.join(self.depth_dir, f"{img_name}.tif")
 
-        with Image.open(RGB_img_path) as RGB_src:
+        with rasterio.open(RGB_img_path) as RGB_src:
             # Read the image data
             RGB_img = RGB_src.read()
 
-        with Image.open(hs_img_path) as hs_src:
+        with rasterio.open(hs_img_path) as hs_src:
             # Read the image data
             hs_img = hs_src.read()
 
@@ -172,7 +172,7 @@ class TestSet(Dataset):
 
         # grab ground truth mask
         gt_img_path = os.path.join(self.groundtruth_dir, f"{img_name}.tif")
-        with Image.open(gt_img_path) as gt_src:
+        with rasterio.open(gt_img_path) as gt_src:
             gt_mask = gt_src.read()
 
         gt_image_array = np.array(gt_mask)
