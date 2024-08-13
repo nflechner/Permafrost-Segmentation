@@ -31,5 +31,3 @@ cd Permafrost-Segmentation
 # Install packages from requirements.txt
 pip install -r requirements.txt
 pip install rasterio
-
-
