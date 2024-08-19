@@ -8,6 +8,7 @@ import os
 import wandb
 import pandas as pd
 import rasterio
+import numpy as np
 from torch.utils.data import DataLoader
 
 from model.pseudomask import Pseudomasks
@@ -93,8 +94,11 @@ pseudomask_generator = Pseudomasks(
     )
 pseudomask_generator.model_from_artifact(run_id, artifact_path)
 
-for im,_,_,img_name in loader:
-    pseudomask = pseudomask_generator.generate_mask(im, None, save_plot=False)
+for im,binary_label,_,img_name in loader:
+    if binary_label == 0: 
+        pseudomask = np.full((400, 400), False, dtype=bool)
+    else:
+        pseudomask = pseudomask_generator.generate_mask(im, None, save_plot=False)
     # Update the metadata for the cropped TIF
     cropped_meta = im.meta.copy()
     cropped_meta.update({"driver": "GTiff",
