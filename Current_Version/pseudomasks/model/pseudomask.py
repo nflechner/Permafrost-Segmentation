@@ -146,30 +146,26 @@ class Pseudomasks():
         # RGB input
         ax0 = fig.add_subplot(gs[:, 0])
         ax0.imshow(cpu_img[:,:,:3])
-        ax0.set_xticks([])
-        ax0.set_yticks([])
+        ax0.axis('off')
         ax0.set_title(f'RGB input', size = 22)
 
         # Hillshade input
         ax1 = fig.add_subplot(gs[:, 1])
         ax1.imshow(cpu_img[:,:,3], cmap = 'Greys')
-        ax1.set_xticks([])
-        ax1.set_yticks([])
+        ax1.axis('off')
         ax1.set_title(f'Hillshade input', size = 22)
 
         # CAM
         ax2a = fig.add_subplot(gs[0, 2])
         ax2a.imshow(cpu_img[:,:,:3])
         ax2a.imshow(pals_acts.view(im.shape[3], im.shape[3], 1), alpha=.4, cmap='jet')
-        ax2a.set_xticks([])
-        ax2a.set_yticks([])
+        ax2a.axis('off')
         ax2a.set_title(f'CAM', size = 22)
 
         # Activation mask
         ax2b = fig.add_subplot(gs[0, 3])
         ax2b.imshow(pixels_activated, cmap=cmap_cam, norm=norm_cam)
-        ax2b.set_xticks([])
-        ax2b.set_yticks([])
+        ax2b.axis('off')
         ax2b.set_title(f'Activated cells', size = 22)
 
         # Superpixels
@@ -181,15 +177,13 @@ class Pseudomasks():
         # Superpixels on RGB
         ax3a = fig.add_subplot(gs[1, 2])
         ax3a.imshow(combined_image)
-        ax3a.set_xticks([])
-        ax3a.set_yticks([])
+        ax3a.axis('off')
         ax3a.set_title(f'SNIC output', size = 22)
 
         # Superpixel borders
         ax3b = fig.add_subplot(gs[1, 3])
         ax3b.imshow(binary_boundaries, cmap=cmap_snic, norm=norm_snic)
-        ax3b.set_xticks([])
-        ax3b.set_yticks([])
+        ax3b.axis('off')
         ax3b.set_title(f'Superpixels', size = 22)
 
         # Overlap
@@ -197,22 +191,19 @@ class Pseudomasks():
         overlap[np.squeeze(pixels_activated) == 1] = 10
         ax4 = fig.add_subplot(gs[:, 4])
         ax4.imshow(overlap, cmap=cmap_overlap, norm=norm_overlap)
-        ax4.set_xticks([])
-        ax4.set_yticks([])
+        ax4.axis('off')
         ax4.set_title(f'Overlap', size = 22)
 
         # Pseudomask
         ax5 = fig.add_subplot(gs[:, 5])
         ax5.imshow(pseudomask, cmap=cmap_cam, norm=norm_cam)
-        ax5.set_xticks([])
-        ax5.set_yticks([])
+        ax5.axis('off')
         ax5.set_title(f'Pseudomask', size = 22)
 
         # Ground truth
         ax6 = fig.add_subplot(gs[:, 6])
         ax6.imshow(gt.squeeze(0).permute(1,2,0).long().numpy(), cmap=cmap_cam, norm=norm_cam)
-        ax6.set_xticks([])
-        ax6.set_yticks([])
+        ax6.axis('off')
         ax6.set_title(f'Ground truth', size = 22)
 
 
