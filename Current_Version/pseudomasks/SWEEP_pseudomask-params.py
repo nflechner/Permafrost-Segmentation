@@ -23,7 +23,7 @@ from utils.data_modules import ImageDataset, TestSet, filter_dataset
 model = 'classification_model:v88'
 
 artifact_path = f'nadjaflechner/VGG_CAMs/{model}'
-testset_dir = '/Users/nadja/Documents/UU/Thesis/Data/Verified_GTs'
+testset_dir = "/home/nadjaflechner/Palsa_data/generated_datasets/Verified_GTs"
 depth_layer = 'hs'
 normalize = True
 finetune = False
@@ -52,7 +52,7 @@ pseudomask_generator = Pseudomasks(test_loader, None, None,
 api = wandb.Api()
 artifact = api.artifact(artifact_path, type='model')
 artifact_dir = artifact.download()
-state_dict = torch.load(f"{artifact_dir}/model.pth", map_location=torch.device('cpu'))
+state_dict = torch.load(f"{artifact_dir}/model.pth")
 pseudomask_generator.model_from_dict(state_dict)
 
 def train_test_model():
@@ -85,7 +85,7 @@ wandb.agent(sweep_id, function = train_test_model, count = 35)
 model = 'classification_model:v61'
 
 artifact_path = f'nadjaflechner/VGG_CAMs/{model}'
-testset_dir = '/Users/nadja/Documents/UU/Thesis/Data/Verified_GTs'
+testset_dir = "/home/nadjaflechner/Palsa_data/generated_datasets/Verified_GTs"
 depth_layer = 'hs'
 normalize = False
 finetune = False
@@ -114,7 +114,7 @@ pseudomask_generator = Pseudomasks(test_loader, None, None,
 api = wandb.Api()
 artifact = api.artifact(artifact_path, type='model')
 artifact_dir = artifact.download()
-state_dict = torch.load(f"{artifact_dir}/model.pth", map_location=torch.device('cpu'))
+state_dict = torch.load(f"{artifact_dir}/model.pth")
 pseudomask_generator.model_from_dict(state_dict)
 
 def train_test_model():
@@ -146,7 +146,7 @@ wandb.agent(sweep_id, function = train_test_model, count = 35)
 model = 'classification_model:v61'
 
 artifact_path = f'nadjaflechner/VGG_CAMs/{model}'
-testset_dir = '/Users/nadja/Documents/UU/Thesis/Data/Verified_GTs'
+testset_dir = "/home/nadjaflechner/Palsa_data/generated_datasets/Verified_GTs"
 depth_layer = 'hs'
 normalize = True
 finetune = False
@@ -175,7 +175,7 @@ pseudomask_generator = Pseudomasks(test_loader, None, None,
 api = wandb.Api()
 artifact = api.artifact(artifact_path, type='model')
 artifact_dir = artifact.download()
-state_dict = torch.load(f"{artifact_dir}/model.pth", map_location=torch.device('cpu'))
+state_dict = torch.load(f"{artifact_dir}/model.pth")
 pseudomask_generator.model_from_dict(state_dict)
 
 def train_test_model():
@@ -207,7 +207,7 @@ wandb.agent(sweep_id, function = train_test_model, count = 35)
 model = 'classification_model:v45'
 
 artifact_path = f'nadjaflechner/VGG_CAMs/{model}'
-testset_dir = '/Users/nadja/Documents/UU/Thesis/Data/Verified_GTs'
+testset_dir = "/home/nadjaflechner/Palsa_data/generated_datasets/Verified_GTs"
 depth_layer = 'hs'
 normalize = True
 finetune = False
@@ -236,7 +236,7 @@ pseudomask_generator = Pseudomasks(test_loader, None, None,
 api = wandb.Api()
 artifact = api.artifact(artifact_path, type='model')
 artifact_dir = artifact.download()
-state_dict = torch.load(f"{artifact_dir}/model.pth", map_location=torch.device('cpu'))
+state_dict = torch.load(f"{artifact_dir}/model.pth")
 pseudomask_generator.model_from_dict(state_dict)
 
 def train_test_model():
@@ -269,7 +269,7 @@ wandb.agent(sweep_id, function = train_test_model, count = 35)
 model = 'classification_model:v67'
 
 artifact_path = f'nadjaflechner/VGG_CAMs/{model}'
-testset_dir = '/Users/nadja/Documents/UU/Thesis/Data/Verified_GTs'
+testset_dir = "/home/nadjaflechner/Palsa_data/generated_datasets/Verified_GTs"
 depth_layer = 'hs'
 normalize = True
 finetune = False
@@ -298,7 +298,7 @@ pseudomask_generator = Pseudomasks(test_loader, None, None,
 api = wandb.Api()
 artifact = api.artifact(artifact_path, type='model')
 artifact_dir = artifact.download()
-state_dict = torch.load(f"{artifact_dir}/model.pth", map_location=torch.device('cpu'))
+state_dict = torch.load(f"{artifact_dir}/model.pth")
 pseudomask_generator.model_from_dict(state_dict)
 
 def train_test_model():
