@@ -65,12 +65,15 @@ class Pseudomasks():
         running_accuracy_palsa = 0
         running_F1_palsa = 0
 
+        running_OA = 0
+        running_OJ = 0
+
         for im, lab, _, gt_mask in test_loader:
             pseudomask = self.generate_mask(im, gt_mask, save_plot=False) # TODO make saveplot true sometimes
             # calculate metrics to evaluate model on test set
             generated_mask = torch.Tensor(pseudomask).int().view(400,400).to(self.device)
             groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400).to(self.device)
-            jaccard, accuracy, F1 = self.calc_metrics(generated_mask, groundtruth_mask)
+            jaccard, accuracy, F1, OA, OJ = self.calc_metrics(generated_mask, groundtruth_mask)
 
             # unpack tuples of per class calculated metrics
             running_jaccard_nopalsa += jaccard[0]
@@ -81,13 +84,18 @@ class Pseudomasks():
             running_accuracy_palsa += accuracy[1]
             running_F1_palsa += F1[1]
 
+            running_OA += OA
+            running_OJ += OJ
+
         wandb.log({"test_jaccard_nopalsa": running_jaccard_nopalsa / len(test_loader.dataset)})
         wandb.log({"test_accuracy_nopalsa": running_accuracy_nopalsa / len(test_loader.dataset)})
         wandb.log({"test_F1_nopalsa": running_F1_nopalsa / len(test_loader.dataset)})
+        wandb.log({"test_overall_accuracy": running_OA / len(test_loader.dataset)})
+        wandb.log({"test_overall_jaccard": running_OJ / len(test_loader.dataset)})
 
-        wandb.log({"test_jaccard_palsa": running_jaccard_palsa / 107}) # hardcoded the num of samples in testdata that have palsa
-        wandb.log({"test_accuracy_palsa": running_accuracy_palsa / 107}) # TODO maybe not make it hardcoded.. 
-        wandb.log({"test_F1_palsa": running_F1_palsa / 107})
+        wandb.log({"test_jaccard_palsa": running_jaccard_palsa / 111}) # hardcoded the num of samples in testdata that have palsa
+        wandb.log({"test_accuracy_palsa": running_accuracy_palsa / 111}) # TODO maybe not make it hardcoded.. 
+        wandb.log({"test_F1_palsa": running_F1_palsa / 111})
 
     def generate_mask(self, im, gt, save_plot: bool):
 
@@ -119,11 +127,11 @@ class Pseudomasks():
         # Plot image with CAM
         cpu_img = im.squeeze().cpu().detach().permute(1,2,0).long().numpy()
         superpixels = np.array(snic(cpu_img, int(self.snic_seeds), self.snic_compactness)[0])
-        pseudomask = self.create_superpixel_mask(superpixels, pixels_activated.squeeze(), threshold=self.overlap_threshold)
+        pseudomask = self.create_superpixel_mask(superpixels, pixels_activated.squeeze(), threshold=self.overlap_threshold) 
 
         if save_plot: self.generate_plot(cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt)
         
-        return pseudomask
+        return pseudomask # bool np.array [400,400]
 
     def generate_plot(self, cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt):
 
@@ -146,30 +154,26 @@ class Pseudomasks():
         # RGB input
         ax0 = fig.add_subplot(gs[:, 0])
         ax0.imshow(cpu_img[:,:,:3])
-        ax0.set_xticks([])
-        ax0.set_yticks([])
+        ax0.axis('off')
         ax0.set_title(f'RGB input', size = 22)
 
         # Hillshade input
         ax1 = fig.add_subplot(gs[:, 1])
         ax1.imshow(cpu_img[:,:,3], cmap = 'Greys')
-        ax1.set_xticks([])
-        ax1.set_yticks([])
+        ax1.axis('off')
         ax1.set_title(f'Hillshade input', size = 22)
 
         # CAM
         ax2a = fig.add_subplot(gs[0, 2])
         ax2a.imshow(cpu_img[:,:,:3])
         ax2a.imshow(pals_acts.view(im.shape[3], im.shape[3], 1), alpha=.4, cmap='jet')
-        ax2a.set_xticks([])
-        ax2a.set_yticks([])
+        ax2a.axis('off')
         ax2a.set_title(f'CAM', size = 22)
 
         # Activation mask
         ax2b = fig.add_subplot(gs[0, 3])
         ax2b.imshow(pixels_activated, cmap=cmap_cam, norm=norm_cam)
-        ax2b.set_xticks([])
-        ax2b.set_yticks([])
+        ax2b.axis('off')
         ax2b.set_title(f'Activated cells', size = 22)
 
         # Superpixels
@@ -181,15 +185,13 @@ class Pseudomasks():
         # Superpixels on RGB
         ax3a = fig.add_subplot(gs[1, 2])
         ax3a.imshow(combined_image)
-        ax3a.set_xticks([])
-        ax3a.set_yticks([])
+        ax3a.axis('off')
         ax3a.set_title(f'SNIC output', size = 22)
 
         # Superpixel borders
         ax3b = fig.add_subplot(gs[1, 3])
         ax3b.imshow(binary_boundaries, cmap=cmap_snic, norm=norm_snic)
-        ax3b.set_xticks([])
-        ax3b.set_yticks([])
+        ax3b.axis('off')
         ax3b.set_title(f'Superpixels', size = 22)
 
         # Overlap
@@ -197,22 +199,19 @@ class Pseudomasks():
         overlap[np.squeeze(pixels_activated) == 1] = 10
         ax4 = fig.add_subplot(gs[:, 4])
         ax4.imshow(overlap, cmap=cmap_overlap, norm=norm_overlap)
-        ax4.set_xticks([])
-        ax4.set_yticks([])
+        ax4.axis('off')
         ax4.set_title(f'Overlap', size = 22)
 
         # Pseudomask
         ax5 = fig.add_subplot(gs[:, 5])
         ax5.imshow(pseudomask, cmap=cmap_cam, norm=norm_cam)
-        ax5.set_xticks([])
-        ax5.set_yticks([])
+        ax5.axis('off')
         ax5.set_title(f'Pseudomask', size = 22)
 
         # Ground truth
         ax6 = fig.add_subplot(gs[:, 6])
         ax6.imshow(gt.squeeze(0).permute(1,2,0).long().numpy(), cmap=cmap_cam, norm=norm_cam)
-        ax6.set_xticks([])
-        ax6.set_yticks([])
+        ax6.axis('off')
         ax6.set_title(f'Ground truth', size = 22)
 
 
@@ -231,7 +230,10 @@ class Pseudomasks():
         accuracy = MulticlassAccuracy(num_classes=2, average=None).to(self.device)
         F1 = MulticlassF1Score(num_classes=2, average=None).to(self.device)
 
-        return jaccard(pseudomask, gt), accuracy(pseudomask, gt), F1(pseudomask, gt)
+        OA = MulticlassAccuracy(num_classes=2, average='micro').to(self.device)
+        OJ = MulticlassJaccardIndex(num_classes=2, average='micro').to(self.device)
+
+        return jaccard(pseudomask, gt), accuracy(pseudomask, gt), F1(pseudomask, gt), OA(pseudomask, gt), OJ(pseudomask, gt)
 
     def create_superpixel_mask(self, superpixels, binary_mask, threshold):
         # Get the unique superpixel labels
