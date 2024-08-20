@@ -12,6 +12,16 @@ import torchmetrics
 import wandb
 from torch.autograd import Variable
 
+import json
+import os
+
+from torch.utils.data import DataLoader
+
+from model.cnn_classifier import model_4D
+from model.finetune import FinetuneLoop
+from model.pseudomask import Pseudomasks
+from utils.data_modules import ImageDataset, TestSet, filter_dataset
+
 
 def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_gamma, num_epochs,loss_weights):
 
@@ -112,22 +122,6 @@ def ClassifierTrainLoop(model, train_loader, val_loader, lr, weight_decay, lr_ga
     del labels
 
     return best_model
-
-############
-# Imports #
-############
-
-import json
-import os
-
-import torch
-import wandb
-from torch.utils.data import DataLoader
-
-from model.cnn_classifier import model_4D
-from model.finetune import FinetuneLoop
-from model.pseudomask import Pseudomasks
-from utils.data_modules import ImageDataset, TestSet, filter_dataset
 
 ##############################
 # hardcoded constant configs # 
