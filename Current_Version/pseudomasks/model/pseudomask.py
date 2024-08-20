@@ -65,12 +65,15 @@ class Pseudomasks():
         running_accuracy_palsa = 0
         running_F1_palsa = 0
 
+        running_OA = 0
+        running_OJ = 0
+
         for im, lab, _, gt_mask in test_loader:
             pseudomask = self.generate_mask(im, gt_mask, save_plot=False) # TODO make saveplot true sometimes
             # calculate metrics to evaluate model on test set
             generated_mask = torch.Tensor(pseudomask).int().view(400,400).to(self.device)
             groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400).to(self.device)
-            jaccard, accuracy, F1 = self.calc_metrics(generated_mask, groundtruth_mask)
+            jaccard, accuracy, F1, OA, OJ = self.calc_metrics(generated_mask, groundtruth_mask)
 
             # unpack tuples of per class calculated metrics
             running_jaccard_nopalsa += jaccard[0]
@@ -81,13 +84,18 @@ class Pseudomasks():
             running_accuracy_palsa += accuracy[1]
             running_F1_palsa += F1[1]
 
+            running_OA += OA
+            running_OJ += OJ
+
         wandb.log({"test_jaccard_nopalsa": running_jaccard_nopalsa / len(test_loader.dataset)})
         wandb.log({"test_accuracy_nopalsa": running_accuracy_nopalsa / len(test_loader.dataset)})
         wandb.log({"test_F1_nopalsa": running_F1_nopalsa / len(test_loader.dataset)})
+        wandb.log({"test_overall_accuracy": running_OA / len(test_loader.dataset)})
+        wandb.log({"test_overall_jaccard": running_OJ / len(test_loader.dataset)})
 
-        wandb.log({"test_jaccard_palsa": running_jaccard_palsa / 107}) # hardcoded the num of samples in testdata that have palsa
-        wandb.log({"test_accuracy_palsa": running_accuracy_palsa / 107}) # TODO maybe not make it hardcoded.. 
-        wandb.log({"test_F1_palsa": running_F1_palsa / 107})
+        wandb.log({"test_jaccard_palsa": running_jaccard_palsa / 111}) # hardcoded the num of samples in testdata that have palsa
+        wandb.log({"test_accuracy_palsa": running_accuracy_palsa / 111}) # TODO maybe not make it hardcoded.. 
+        wandb.log({"test_F1_palsa": running_F1_palsa / 111})
 
     def generate_mask(self, im, gt, save_plot: bool):
 
@@ -222,7 +230,10 @@ class Pseudomasks():
         accuracy = MulticlassAccuracy(num_classes=2, average=None).to(self.device)
         F1 = MulticlassF1Score(num_classes=2, average=None).to(self.device)
 
-        return jaccard(pseudomask, gt), accuracy(pseudomask, gt), F1(pseudomask, gt)
+        OA = MulticlassAccuracy(num_classes=2, average='micro').to(self.device)
+        OJ = MulticlassJaccardIndex(num_classes=2, average='micro').to(self.device)
+
+        return jaccard(pseudomask, gt), accuracy(pseudomask, gt), F1(pseudomask, gt), OA(pseudomask, gt), OJ(pseudomask, gt)
 
     def create_superpixel_mask(self, superpixels, binary_mask, threshold):
         # Get the unique superpixel labels
