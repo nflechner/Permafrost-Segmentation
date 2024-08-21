@@ -21,7 +21,7 @@ from utils.data_modules import ImageDataset, TestSet, filter_dataset
 # use this path when using vs code debugger.
 # config_path = os.path.join('/home/nadjaflechner/palsa_seg/current_models/pseudomask_generation_model', 'configs.json')
 
-config_path = os.path.join(os.getcwd(), 'pseudomasks_configs/configs.json')
+config_path = os.path.join(os.getcwd(), 'configs/pseudomasks_configs.json')
 with open(config_path, 'r') as config_file:
     configs = json.load(config_file)
 
