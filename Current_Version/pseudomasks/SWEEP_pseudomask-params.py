@@ -20,12 +20,12 @@ from utils.data_modules import ImageDataset, TestSet, filter_dataset
 ############
 
 # model to be tested
-model = 'classification_model:v48'
+model = 'royal_sunset'
 
-artifact_path = f'nadjaflechner/VGG_CAMs/{model}'
+artifact_path = 'nadjaflechner/Permafrost_Ablation/classification_model:v1'
 testset_dir = "/home/nadjaflechner/Palsa_data/generated_datasets/Verified_GTs"
 depth_layer = 'hs'
-normalize = True
+normalize = True 
 finetune = False
 std_from_mean = 0
 
@@ -41,7 +41,7 @@ sweep_configuration = {
     },
 }
 
-sweep_id = wandb.sweep(sweep=sweep_configuration, project="VGG_CAMs")
+sweep_id = wandb.sweep(sweep=sweep_configuration, project="Permafrost_Ablation")
 
 test_set = TestSet(depth_layer, testset_dir, normalize)
 test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)

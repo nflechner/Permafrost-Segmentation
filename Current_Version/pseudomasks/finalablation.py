@@ -161,9 +161,9 @@ lr_gamma = 0.93
 ########################
 
 # assign hyperparams
-min_palsa_positive_samples = 10
-n_samples = 10205 
-loss_weights = [1.16,7.12]
+min_palsa_positive_samples = 5
+n_samples = 11128 
+loss_weights = [1.27,4.72]
 
 normalize = False
 augment = False
