@@ -6,24 +6,23 @@
         "final_pseudomasks_dir": "/home/nadjaflechner/Palsa_data/generated_datasets/final_pseudomasks/"
     },
     "model": {
-        "artifact_path": "nadjaflechner/VGG_CAMs/model:v31", 
-        "run_id": "3493djxg",
+        "artifact_path": "nadjaflechner/VGG_CAMs/classification_model:v61", 
         "finetuned": true
     },
     "data": {
-        "n_samples": 1000,
+        "n_samples": 14586,
         "batch_size": 20,
         "im_size": 200,
-        "min_palsa_positive_samples": 2,
-        "augment": true,
-        "normalize": true,
-        "depth_layer": "dem"
+        "min_palsa_positive_samples": 0,
+        "augment": false,
+        "normalize": false,
+        "depth_layer": "hs"
     },
     "pseudomasks": {
-        "cam_threshold_factor": 0.95, 
-        "overlap_threshold": 0.3,
+        "cam_threshold_factor": 0.87, 
+        "overlap_threshold": 0.46,
         "snic_seeds": 100,
-        "snic_compactness": 10,
-        "std_from_mean": 2
+        "snic_compactness": 4,
+        "std_from_mean": 0
     }
 }

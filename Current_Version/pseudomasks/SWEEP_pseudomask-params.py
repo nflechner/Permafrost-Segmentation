@@ -20,7 +20,7 @@ from utils.data_modules import ImageDataset, TestSet, filter_dataset
 ############
 
 # model to be tested
-model = 'royal_sunset'
+model = 'royal-sunset-3'
 
 artifact_path = 'nadjaflechner/Permafrost_Ablation/classification_model:v1'
 testset_dir = "/home/nadjaflechner/Palsa_data/generated_datasets/Verified_GTs"
@@ -59,6 +59,7 @@ def train_test_model():
 
     run = wandb.init(
         # Track hyperparameters and run metadata
+        project='Permafrost_Ablation',
         config={
             "model": model,
             "normalize": normalize
