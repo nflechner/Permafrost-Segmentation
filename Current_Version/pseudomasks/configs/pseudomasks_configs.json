@@ -3,7 +3,7 @@
         "data": "/home/nadjaflechner/Palsa_data/generated_datasets/FINAL_200m_dataset/",
         "testset": "/home/nadjaflechner/Palsa_data/generated_datasets/FINAL_200m_groundtruths",
         "palsa_shapefile": "/home/nadjaflechner/Palsa_data/Palsa_rutor/RUTNAT_100x100M_PALS_OR_PALSVATT_ALL.shp",
-        "final_pseudomasks_dir": "/home/nadjaflechner/Palsa_data/generated_datasets/final_pseudomasks/"
+        "final_pseudomasks_dir": "/home/nadjaflechner/Palsa_data/generated_datasets/Supervised_dataset/"
     },
     "model": {
         "artifact_path": "nadjaflechner/VGG_CAMs/classification_model:v61", 
