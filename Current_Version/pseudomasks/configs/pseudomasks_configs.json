@@ -7,7 +7,7 @@
     },
     "model": {
         "artifact_path": "nadjaflechner/VGG_CAMs/classification_model:v61", 
-        "finetuned": true
+        "finetuned": false
     },
     "data": {
         "n_samples": 14586,
