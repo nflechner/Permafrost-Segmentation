@@ -20,12 +20,12 @@ from utils.data_modules import ImageDataset, TestSet, filter_dataset
 ############
 
 # model to be tested
-model = 'royal-sunset-3'
+model = 'trim_leaf'
 
-artifact_path = 'nadjaflechner/Permafrost_Ablation/classification_model:v1'
+artifact_path = 'nadjaflechner/VGG_CAMs/model:v45'
 testset_dir = "/home/nadjaflechner/Palsa_data/generated_datasets/Verified_GTs"
 depth_layer = 'hs'
-normalize = True 
+normalize = False 
 finetune = False
 std_from_mean = 0
 
@@ -35,13 +35,13 @@ sweep_configuration = {
     "metric": {"goal": "maximize", "name": "test_jaccard_palsa"},
     "parameters": {
         "cam_threshold_factor": {"max": 2.2, "min": 0.3},
-        "overlap_threshold": {"max": 0.7, "min": 0.01},
+        "overlap_threshold": {"max": 0.6, "min": 0.01},
         "snic_seeds": {"values": [20,40,60,80,100]},
         "snic_compactness": {"max": 25, "min": 1}
     },
 }
 
-sweep_id = wandb.sweep(sweep=sweep_configuration, project="Permafrost_Ablation")
+sweep_id = wandb.sweep(sweep=sweep_configuration, project="VGG_CAMs")
 
 test_set = TestSet(depth_layer, testset_dir, normalize)
 test_loader = DataLoader(test_set, batch_size=1, shuffle=True, num_workers=1)
@@ -75,5 +75,5 @@ def train_test_model():
     pseudomask_generator.test_loop(test_loader)
 
 # Start sweep
-wandb.agent(sweep_id, function = train_test_model, count = 35)
+wandb.agent(sweep_id, function = train_test_model, count = 30)
 
