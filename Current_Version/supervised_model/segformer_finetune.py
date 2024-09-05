@@ -19,20 +19,33 @@ import wandb
 class SemanticSegmentationDataset(Dataset):
     """Image (semantic) segmentation dataset."""
 
-    def __init__(self, root_dir, image_processor):
+    def __init__(self, root_dir):
         """
         Args:
             root_dir (string): Root directory of the dataset containing the images + annotations.
             image_processor (SegformerImageProcessor): image processor to prepare images + segmentation maps.
         """
         self.root_dir = root_dir
-        self.image_processor = image_processor
+        self.image_processor = SegformerImageProcessor(
+            image_mean = [74.90, 85.26, 80.06], # use mean calculated over our dataset
+            image_std = [15.05, 13.88, 12.01], # use std calculated over our dataset
+            do_reduce_labels=False
+            )
 
         self.img_dir = os.path.join(self.root_dir, "images")
         self.ann_dir = os.path.join(self.root_dir, "masks")
         
         # Get all image filenames without extension
-        self.filenames = [os.path.splitext(f)[0] for f in os.listdir(self.img_dir) if f.endswith('.jpg')]
+        dataframe = pd.read_csv(
+            f"{root_dir}/orig_palsa_labels.csv", 
+            names=['filename', 'palsa'], 
+            header=0
+            )
+        
+        dataframe = dataframe.loc[dataframe['palsa']>0]
+        dataframe = dataframe[~dataframe['filename'].str.endswith('aug')]
+        checked_names = list(dataframe['filename'])
+        self.filenames = [os.path.splitext(f)[0] for f in os.listdir(self.img_dir) if f[:-4] in checked_names]
 
     def __len__(self):
         return len(self.filenames)
@@ -53,16 +66,49 @@ class SemanticSegmentationDataset(Dataset):
 
         return encoded_inputs
 
+##############
+# Custom Loss
+##############
+
+def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 24]):
+    """
+    Calculate weighted cross-entropy loss for binary segmentation using PyTorch's built-in functions.
+    
+    Args:
+    logits (torch.Tensor): Predicted logits with shape [batch, num_classes, height, width]
+    targets (torch.Tensor): Ground truth labels with shape [batch, height, width]
+    class_weights (list): Weights for each class [weight_class_0, weight_class_1]
+    
+    Returns:
+    torch.Tensor: Weighted cross-entropy loss
+    """
+    # Ensure inputs are on the same device
+    device = logits.device
+    targets = targets.to(device)
+    
+    # Convert class weights to a tensor and move to the same device
+    class_weights = torch.tensor(class_weights, dtype=torch.float32, device=device)
+    
+    # Create the loss function with weights
+    criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='mean')
+    
+    # Calculate and return the loss
+    return criterion(logits, targets)
+
+# Example usage:
+# logits = torch.randn(32, 2, 512, 512)  # [batch, num_classes, height, width]
+# targets = torch.randint(0, 2, (32, 512, 512))  # [batch, height, width]
+# loss = weighted_cross_entropy_loss(logits, targets)
+
+
+###################
+# Generate Datasets
+###################
 
 root_dir = "/root/Permafrost-Segmentation/Supervised_dataset"
-image_processor = SegformerImageProcessor(
-    image_mean = [74.90, 85.26, 80.06], # use mean calculated over our dataset
-    image_std = [15.05, 13.88, 12.01], # use std calculated over our dataset
-    do_reduce_labels=False
-    )
 
 # Create the full dataset
-full_dataset = SemanticSegmentationDataset(root_dir, image_processor)
+full_dataset = SemanticSegmentationDataset(root_dir)
 
 # Split the dataset into 85% train and 15% validation
 total_size = len(full_dataset)
@@ -71,13 +117,13 @@ valid_size = total_size - train_size
 
 train_dataset, valid_dataset = random_split(full_dataset, [train_size, valid_size])
 
-train_dataloader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-valid_dataloader = DataLoader(valid_dataset, batch_size=64)
+train_dataloader = DataLoader(train_dataset, batch_size=40, shuffle=True)
+valid_dataloader = DataLoader(valid_dataset, batch_size=40)
 
 # define model
 model = SegformerForSemanticSegmentation.from_pretrained(
     "nvidia/mit-b0", 
-    num_labels=1# since we treat '0' as a background, the only class is palsa.
+    num_labels=2
 ) 
 
 # Freeze encoder layers
@@ -92,20 +138,22 @@ for i in range(len(model.segformer.encoder.block) - num_unfrozen_blocks, len(mod
         param.requires_grad = True
 
 
-epochs = 20
-lr = 0.00006
+epochs = 5
+lr = 0.001
 warmup_steps = 100  # Adjust this value as needed
-
-# define optimizer
-optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
-
-# define scheduler
-total_steps = len(train_dataloader) * epochs
-scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
 
 # move model to GPU
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
+
+# define optimizer and loss
+optimizer = torch.optim.AdamW(model.parameters(), lr=lr)
+criterion = weighted_cross_entropy_loss
+
+
+# define scheduler
+total_steps = len(train_dataloader) * epochs
+scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
 
 # Move optimizer to GPU (possibly unneccessary)
 for state in optimizer.state.values():
@@ -123,15 +171,15 @@ run = wandb.init(
     project="Finetune_segformer",
     # Track hyperparameters and run metadata
     config={
-        "epochs": 20,
+        "epochs": epochs,
         "lr": lr,
         "warmup_steps": warmup_steps,
         "patience": patience
         }
 )
 
-model.train()
 for epoch in range(epochs):
+    model.train()
     print(f"Epoch: {epoch}")
     progress_bar = tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{epochs}")
     for batch in progress_bar:  
@@ -142,11 +190,22 @@ for epoch in range(epochs):
         # zero the parameter gradients
         optimizer.zero_grad()
 
-        # forward + backward + optimize
         outputs = model(pixel_values=pixel_values, labels=labels)
-        loss, logits = outputs.loss, outputs.logits
+        logits = outputs.logits
+        upsampled_logits = F.interpolate(
+            logits.unsqueeze(1).float(), 
+            size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
+            mode="nearest")
+        loss = criterion(upsampled_logits.squeeze(1), labels)
 
         loss.backward()
+        optimizer.step()
+
+        # forward + backward + optimize
+        # outputs = model(pixel_values=pixel_values, labels=labels)
+        # loss, logits = outputs.loss, outputs.logits
+        
+        # loss.backward()
         optimizer.step()
         scheduler.step()  # Update learning rate
 
@@ -167,12 +226,14 @@ for epoch in range(epochs):
             loss, logits = outputs.loss, outputs.logits
 
             # Calculate Jaccard score
-            # Since we only have one feature map, we can use a threshold to determine the segmentation
-            predicted = (logits.squeeze(1) > 0).float()  # Threshold at 0
-            upsampled_predicted = F.interpolate(predicted.unsqueeze(1), size=labels.shape[-2:], mode="nearest")
+            # Convert logits to binary segmentation mask
+            predicted = torch.argmax(logits, dim=1)  # Shape: (batch_size, 128, 128)
+            
+            # Upsample the predicted mask to match the label size
+            upsampled_predicted = F.interpolate(predicted.unsqueeze(1).float(), size=labels.shape[-2:], mode="nearest")
 
             # Calculate Jaccard score (IoU) for both classes
-            jaccard = jaccard_index(upsampled_predicted.squeeze(1), labels, task="multiclass", num_classes=2)
+            jaccard = jaccard_index(upsampled_predicted.squeeze(1).long(), labels, task="multiclass", num_classes=2)
             jaccard_scores.append(jaccard.item())
 
             # Calculate Jaccard score (IoU) for target class only, if not a only background image
@@ -198,9 +259,6 @@ for epoch in range(epochs):
             print(f"Early stopping triggered. No improvement in target Jaccard score for {patience} epochs.")
             break
     
-    model.train()
-
-
 artifact = wandb.Artifact('finetuned_segformer', type='model')
 artifact.add_file('best_model.pth')
 run.log_artifact(artifact)
