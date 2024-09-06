@@ -108,7 +108,7 @@ def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 6]): # shuld 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 epochs = 8
 batch_size = 5
-lr = 7e-7 # in satellite segformer used 7e-5
+lr = 7e-8 # in satellite segformer used 7e-5
 warmup_steps = 100 # Adjust this value as needed
 
 # Early stopping parameters
@@ -117,8 +117,8 @@ best_jaccard = 0
 epochs_no_improve = 0
 
 freeze_encoder = True
-# model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
-model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
+model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
+# model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
 
 run = wandb.init(
     # Set the project where this run will be logged
