@@ -1,17 +1,21 @@
-import numpy as np
-import os
-import pandas as pd 
 import torch
-import torch.nn.functional as F
-import wandb
-
-from PIL import Image
 from torch import nn
 from torchmetrics.functional import jaccard_index
 from tqdm import tqdm
-from transformers import get_linear_schedule_with_warmup, SegformerForSemanticSegmentation, SegformerImageProcessor
-from torch.utils.data import Dataset, random_split, DataLoader
+from transformers import get_linear_schedule_with_warmup
+import torch.nn.functional as F
+from transformers import SegformerForSemanticSegmentation
 
+from transformers import SegformerImageProcessor
+import pandas as pd 
+from torch.utils.data import Dataset, random_split
+from torch.utils.data import DataLoader
+import os
+from PIL import Image
+import numpy as np
+import wandb
+
+# adapted from https://github.com/NielsRogge/Transformers-Tutorials/blob/master/SegFormer/Fine_tune_SegFormer_on_custom_dataset.ipynb
 class SemanticSegmentationDataset(Dataset):
     """Image (semantic) segmentation dataset."""
 
@@ -62,23 +66,59 @@ class SemanticSegmentationDataset(Dataset):
 
         return encoded_inputs
 
+##############
+# Custom Loss
+##############
+
+def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 6]): # shuld be 1,24
+    """
+    Calculate weighted cross-entropy loss for binary segmentation using PyTorch's built-in functions.
+    
+    Args:
+    logits (torch.Tensor): Predicted logits with shape [batch, num_classes, height, width]
+    targets (torch.Tensor): Ground truth labels with shape [batch, height, width]
+    class_weights (list): Weights for each class [weight_class_0, weight_class_1]
+    
+    Returns:
+    torch.Tensor: Weighted cross-entropy loss
+    """
+    # Ensure inputs are on the same device
+    device = logits.device
+    targets = targets.to(device)
+    
+    # Convert class weights to a tensor and move to the same device
+    class_weights = torch.tensor(class_weights, dtype=torch.float32, device=device)
+    
+    # Create the loss function with weights
+    criterion = nn.CrossEntropyLoss(weight=class_weights, reduction='mean')
+    
+    # Calculate and return the loss
+    return criterion(logits, targets)
+
+# Example usage:
+# logits = torch.randn(32, 2, 512, 512)  # [batch, num_classes, height, width]
+# targets = torch.randint(0, 2, (32, 512, 512))  # [batch, height, width]
+# loss = weighted_cross_entropy_loss(logits, targets)
+
 
 #########
 # CONFIGS
 #########
 
-model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
-# model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
-
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-epochs = 4
-lr = 7e-5
-warmup_steps = 100  # Adjust this value as needed
+epochs = 8
+batch_size = 5
+lr = 7e-7 # in satellite segformer used 7e-5
+warmup_steps = 100 # Adjust this value as needed
 
 # Early stopping parameters
 patience = 5
 best_jaccard = 0
 epochs_no_improve = 0
+
+freeze_encoder = True
+# model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
+model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
 
 run = wandb.init(
     # Set the project where this run will be logged
@@ -89,7 +129,8 @@ run = wandb.init(
         "lr": lr,
         "warmup_steps": warmup_steps,
         "patience": patience,
-        "model": model_name,
+        "freeze_encoder": freeze_encoder,
+        "model_name": model_name
         }
 )
 
@@ -108,8 +149,8 @@ valid_size = total_size - train_size
 
 train_dataset, valid_dataset = random_split(full_dataset, [train_size, valid_size])
 
-train_dataloader = DataLoader(train_dataset, batch_size=5)#, shuffle=True)
-valid_dataloader = DataLoader(valid_dataset, batch_size=5)
+train_dataloader = DataLoader(train_dataset, batch_size=batch_size)#, shuffle=True)
+valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size)
 
 # define model
 model = SegformerForSemanticSegmentation.from_pretrained(
@@ -122,11 +163,25 @@ model = SegformerForSemanticSegmentation.from_pretrained(
 for param in model.parameters():
     param.requires_grad = True
 
+# Freeze encoder layers
+if freeze_encoder == True:
+    for param in model.segformer.encoder.parameters():
+        param.requires_grad = False
+
+# # Optionally, unfreeze the last few layers of the encoder
+# # Adjust the number of unfrozen blocks as needed
+# num_unfrozen_blocks = 4
+# for i in range(len(model.segformer.encoder.block) - num_unfrozen_blocks, len(model.segformer.encoder.block)):
+#     for param in model.segformer.encoder.block[i].parameters():
+#         param.requires_grad = True
+
 # model to device
 model.to(device)
 
 # define optimizer and loss
 optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay = 0.03)
+
+criterion = weighted_cross_entropy_loss
 
 # define scheduler
 total_steps = len(train_dataloader) * epochs
@@ -139,14 +194,11 @@ for state in optimizer.state.values():
             state[k] = v.to(device)
 
 
-#########
-# TRAIN #
-#########
-
 for epoch in range(epochs):
 
     model.train()
     print(f"Epoch: {epoch}")
+    train_loss = []
     progress_bar = tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{epochs}")
     for batch in progress_bar:  
         # get the inputs;
@@ -158,7 +210,14 @@ for epoch in range(epochs):
 
         # forward + backward + optimize
         outputs = model(pixel_values=pixel_values, labels=labels)
-        loss, logits = outputs.loss, outputs.logits
+        logits = outputs.logits
+        upsampled_logits = F.interpolate(
+            logits.unsqueeze(1).float(), 
+            size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
+            mode="nearest")
+        loss = criterion(upsampled_logits.squeeze(1), labels)
+        train_loss.append(loss.detach().cpu())
+
         loss.backward()
         optimizer.step()
         scheduler.step()  # Update learning rate
@@ -166,9 +225,14 @@ for epoch in range(epochs):
         # Update progress bar
         progress_bar.set_postfix({"Loss": f"{loss.item():.4f}", "LR": f"{scheduler.get_last_lr()[0]:.6f}"})
 
+    avg_train_loss = sum(train_loss) / len(train_loss)
+    wandb.log({"train_loss": avg_train_loss})
+
     model.eval()
     bg_jaccard_scores = []
     target_jaccard_scores = []
+    val_loss = []
+
     with torch.no_grad():
         for batch in valid_dataloader:
             # get the inputs;
@@ -178,14 +242,21 @@ for epoch in range(epochs):
             # forward pass
             outputs = model(pixel_values=pixel_values, labels=labels)
             loss, logits = outputs.loss, outputs.logits
+            val_loss.append(loss.detach().cpu())
 
+            # Convert logits to binary segmentation mask
+            predicted = torch.argmax(logits, dim=1)  # Shape: (batch_size, 128, 128)
+            
             # Upsample the predicted mask to match the label size
-            upsampled_logits = F.interpolate(logits.float(), size=labels.shape[-2:], mode="nearest")
+            upsampled_predicted = F.interpolate(predicted.unsqueeze(1).float(), size=labels.shape[-2:], mode="nearest")
 
             # Calculate Jaccard score (IoU) for both classes
-            jaccard = jaccard_index(upsampled_logits, labels, task="multiclass", num_classes=2, average= 'none')
+            jaccard = jaccard_index(upsampled_predicted.squeeze(1).long(), labels, task="multiclass", num_classes=2, average='none')
             bg_jaccard_scores.append(jaccard[0])
             target_jaccard_scores.append(jaccard[1])
+
+        avg_val_loss = sum(val_loss) / len(val_loss)
+        wandb.log({"val_loss": avg_val_loss})
 
     avg_bg_jaccard = sum(bg_jaccard_scores) / len(bg_jaccard_scores)
     avg_target_jaccard = sum(target_jaccard_scores) / len(target_jaccard_scores)
@@ -205,6 +276,7 @@ for epoch in range(epochs):
     #         print(f"Early stopping triggered. No improvement in target Jaccard score for {patience} epochs.")
     #         break
     
+
 artifact = wandb.Artifact('finetuned_segformer', type='model')
 artifact.add_file('best_model.pth')
 run.log_artifact(artifact)
