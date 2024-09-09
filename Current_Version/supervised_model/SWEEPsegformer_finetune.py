@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torchmetrics.functional import jaccard_index
+from torchmetrics.functional.classification import multiclass_accuracy
 from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
 import torch.nn.functional as F
@@ -101,7 +102,6 @@ def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 6]): # shuld 
 # loss = weighted_cross_entropy_loss(logits, targets)
 
 
-
 #########
 # CONFIGS
 #########
@@ -112,11 +112,10 @@ batch_size = 5
 warmup_steps = 100
 
 # Early stopping parameters
-patience = 5
-best_jaccard = 0
-epochs_no_improve = 0
+patience = 3
 
-model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
+# model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
+model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
 
 # Define the sweep configuration
 sweep_config = {
@@ -134,7 +133,8 @@ sweep_config = {
 sweep_id = wandb.sweep(sweep_config, project="Finetune_segformer_sweep")
 
 # Create the full dataset
-root_dir = "/root/Permafrost-Segmentation/Supervised_dataset"
+# root_dir = "/root/Permafrost-Segmentation/Supervised_dataset"
+root_dir = "/home/nadjaflechner/Permafrost-Segmentation/Supervised_dataset"
 full_dataset = SemanticSegmentationDataset(root_dir)
 
 # Split the dataset into 85% train and 15% validation
@@ -202,7 +202,10 @@ def train():
             if isinstance(v, torch.Tensor):
                 state[k] = v.to(device)
 
+
     best_jaccard = 0
+    epochs_no_improve = 0
+    best_model_dict = None
     for epoch in range(epochs):
         model.train()
         print(f"Epoch: {epoch}")
@@ -264,20 +267,28 @@ def train():
                     predicted.unsqueeze(1).float(), 
                     size=labels.shape[-2:], 
                     mode="nearest"
-                    )
+                )
 
                 # Calculate Jaccard score (IoU) for both classes
                 jaccard = jaccard_index(
                     upsampled_predicted.squeeze(1).long(), 
-                    labels, task="multiclass", 
+                    labels, 
+                    task="multiclass", 
                     num_classes=2, 
                     average='none'
-                    )
+                )
                 bg_jaccard_scores.append(jaccard[0])
                 target_jaccard_scores.append(jaccard[1])
 
                 # Overall accuracy
-                # TO IMPLEMENT
+                accuracy = multiclass_accuracy(
+                    upsampled_predicted.squeeze(1).long(), 
+                    labels, 
+                    task="multiclass", 
+                    num_classes=2, 
+                    average='micro'
+                )
+                overall_accuracy.append(accuracy)
 
             avg_val_loss = sum(val_loss) / len(val_loss)
             wandb.log({"val_loss": avg_val_loss})
@@ -293,15 +304,16 @@ def train():
         # Early stopping check based on target Jaccard score
         if avg_target_jaccard > best_jaccard:
             best_jaccard = avg_target_jaccard
-        #     epochs_no_improve = 0
-        #     # Save the best model
-            torch.save(model.state_dict(), 'best_model.pth')
+            epochs_no_improve = 0
+            # Save the best model
+            best_model_dict = model.state_dict()
         # else:
-        #     epochs_no_improve += 1
-        #     if epochs_no_improve == patience:
-        #         print(f"Early stopping triggered. No improvement in target Jaccard score for {patience} epochs.")
-        #         break
-        
+            epochs_no_improve += 1
+            if epochs_no_improve == patience:
+                print(f"Early stopping triggered. No improvement in target Jaccard score for {patience} epochs.")
+                break
+
+    torch.save(best_model_dict, 'best_model.pth')
     artifact = wandb.Artifact('finetuned_segformer', type='model')
     artifact.add_file('best_model.pth')
     run.log_artifact(artifact)
