@@ -119,13 +119,13 @@ model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
 
 # Define the sweep configuration
 sweep_config = {
-    'method': 'grid',
+    'method': 'random',
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
         'freeze_encoder': {'values': [True, False]},
         'loss_weights': {'values': [[1,1], [1,6], [1,10], [1,24]]},
-        'lr': {'values': [7e-5, 7e-6, 7e-7]},
-        'weight_decay': {'values': [0.01, 0.03, 0.05, 0.07]}
+        'lr': {"max": 1e-5, "min": 1e-7},
+        'weight_decay': {"max": 0.07, "min": 0.01}
     }
 }
 
@@ -201,7 +201,6 @@ def train():
         for k, v in state.items():
             if isinstance(v, torch.Tensor):
                 state[k] = v.to(device)
-
 
     best_jaccard = 0
     epochs_no_improve = 0
@@ -284,7 +283,6 @@ def train():
                 accuracy = multiclass_accuracy(
                     upsampled_predicted.squeeze(1).long(), 
                     labels, 
-                    task="multiclass", 
                     num_classes=2, 
                     average='micro'
                 )
@@ -307,7 +305,7 @@ def train():
             epochs_no_improve = 0
             # Save the best model
             best_model_dict = model.state_dict()
-        # else:
+        else:
             epochs_no_improve += 1
             if epochs_no_improve == patience:
                 print(f"Early stopping triggered. No improvement in target Jaccard score for {patience} epochs.")
