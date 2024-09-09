@@ -125,7 +125,8 @@ sweep_config = {
     'parameters': {
         'freeze_encoder': {'values': [True, False]},
         'loss_weights': {'values': [[1,1], [1,6], [1,10], [1,24]]},
-        'lr': {'values': [7e-5, 7e-6, 7e-7]}
+        'lr': {'values': [7e-5, 7e-6, 7e-7]},
+        'weight_decay': {'values': [0.01, 0.03, 0.05, 0.07]}
     }
 }
 
@@ -155,11 +156,19 @@ model = SegformerForSemanticSegmentation.from_pretrained(
 
 def train():
     # Initialize a new wandb run
-    run = wandb.init()
+    run = wandb.init(
+        config={
+            "model": model_name,   
+            "epochs": epochs, 
+            "batch_size": batch_size    
+            },
+        tags=["custom_loss"]
+    )
 
     freeze_encoder = wandb.config.freeze_encoder
     loss_weights = wandb.config.loss_weights
     lr = wandb.config.lr
+    weight_decay = wandb.config.weight_decay
 
     # Set learnable layers
     for param in model.parameters():
@@ -181,7 +190,7 @@ def train():
     model.to(device)
 
     # define optimizer and loss
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay = 0.03)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay = weight_decay)
 
     # define scheduler
     total_steps = len(train_dataloader) * epochs
@@ -222,7 +231,10 @@ def train():
             scheduler.step()  # Update learning rate
 
             # Update progress bar
-            progress_bar.set_postfix({"Loss": f"{loss.item():.4f}", "LR": f"{scheduler.get_last_lr()[0]:.6f}"})
+            progress_bar.set_postfix(
+                {"Loss": f"{loss.item():.4f}", 
+                 "LR": f"{scheduler.get_last_lr()[0]:.6f}"}
+                 )
 
         avg_train_loss = sum(train_loss) / len(train_loss)
         wandb.log({"train_loss": avg_train_loss})
@@ -231,6 +243,7 @@ def train():
         bg_jaccard_scores = []
         target_jaccard_scores = []
         val_loss = []
+        overall_accuracy = []
 
         with torch.no_grad():
             for batch in valid_dataloader:
@@ -247,20 +260,34 @@ def train():
                 predicted = torch.argmax(logits, dim=1)  # Shape: (batch_size, 128, 128)
                 
                 # Upsample the predicted mask to match the label size
-                upsampled_predicted = F.interpolate(predicted.unsqueeze(1).float(), size=labels.shape[-2:], mode="nearest")
+                upsampled_predicted = F.interpolate(
+                    predicted.unsqueeze(1).float(), 
+                    size=labels.shape[-2:], 
+                    mode="nearest"
+                    )
 
                 # Calculate Jaccard score (IoU) for both classes
-                jaccard = jaccard_index(upsampled_predicted.squeeze(1).long(), labels, task="multiclass", num_classes=2, average='none')
+                jaccard = jaccard_index(
+                    upsampled_predicted.squeeze(1).long(), 
+                    labels, task="multiclass", 
+                    num_classes=2, 
+                    average='none'
+                    )
                 bg_jaccard_scores.append(jaccard[0])
                 target_jaccard_scores.append(jaccard[1])
+
+                # Overall accuracy
+                # TO IMPLEMENT
 
             avg_val_loss = sum(val_loss) / len(val_loss)
             wandb.log({"val_loss": avg_val_loss})
 
         avg_bg_jaccard = sum(bg_jaccard_scores) / len(bg_jaccard_scores)
         avg_target_jaccard = sum(target_jaccard_scores) / len(target_jaccard_scores)
+        avg_overall_accuracy = sum(overall_accuracy) / len(overall_accuracy)
         wandb.log({"background_jaccard": avg_bg_jaccard})
         wandb.log({"target_jaccard": avg_target_jaccard})
+        wandb.log({"avg_overall_accuracy": avg_overall_accuracy})
         print(f"Epoch {epoch}, Average Background Jaccard Score: {avg_bg_jaccard:.4f}, Target Class Jaccard Score: {avg_target_jaccard:.4f}")
         
         # Early stopping check based on target Jaccard score
