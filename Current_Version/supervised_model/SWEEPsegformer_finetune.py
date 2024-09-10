@@ -114,8 +114,8 @@ warmup_steps = 100
 # Early stopping parameters
 patience = 3
 
-# model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
-model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
+model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
+# model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
 
 # Define the sweep configuration
 sweep_config = {
@@ -123,7 +123,7 @@ sweep_config = {
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
         'freeze_encoder': {'values': [True, False]},
-        'loss_weights': {'values': [[1,1], [1,6], [1,10], [1,24]]},
+        'palsa_weight': {'values': [1,2,3,6,10,15]},
         'lr': {"max": 1e-5, "min": 1e-7},
         'weight_decay': {"max": 0.07, "min": 0.01}
     }
@@ -166,7 +166,7 @@ def train():
     )
 
     freeze_encoder = wandb.config.freeze_encoder
-    loss_weights = wandb.config.loss_weights
+    palsa_weight = wandb.config.palsa_weight
     lr = wandb.config.lr
     weight_decay = wandb.config.weight_decay
 
@@ -225,7 +225,7 @@ def train():
                 logits.unsqueeze(1).float(), 
                 size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
                 mode="nearest")
-            loss = weighted_cross_entropy_loss(upsampled_logits.squeeze(1), labels, class_weights=loss_weights)
+            loss = weighted_cross_entropy_loss(upsampled_logits.squeeze(1), labels, class_weights=[1,palsa_weight])
             train_loss.append(loss.detach().cpu())
 
             loss.backward()
