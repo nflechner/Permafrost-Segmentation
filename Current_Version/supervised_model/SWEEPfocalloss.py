@@ -78,7 +78,7 @@ epochs = 400
 warmup_steps = 100
 
 # Early stopping parameters
-patience = 15
+patience = 10
 
 #########
 # SWEEP 1
@@ -201,7 +201,13 @@ def train():
                 # size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
                 size=[1, labels.shape[-2],labels.shape[-1]], 
                 mode="nearest")
-            loss = sigmoid_focal_loss(upsampled_logits.squeeze(1), labels.unsqueeze(1).float(), alpha = FL_alpha, gamma = FL_gamma, reduction="mean")
+            loss = sigmoid_focal_loss(
+                upsampled_logits.squeeze(1), 
+                labels.unsqueeze(1).float(), 
+                alpha = FL_alpha, 
+                gamma = FL_gamma, 
+                reduction="mean"
+                )
             train_loss.append(loss.detach().cpu())
 
             loss.backward()
@@ -239,7 +245,13 @@ def train():
                     # size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
                     size=[1, labels.shape[-2],labels.shape[-1]], 
                     mode="nearest")
-                loss = sigmoid_focal_loss(upsampled_logits.squeeze(1), labels.unsqueeze(1).float(), alpha = FL_alpha, gamma = FL_gamma, reduction="mean")
+                loss = sigmoid_focal_loss(
+                    upsampled_logits.squeeze(1), 
+                    labels.unsqueeze(1).float(), 
+                    alpha = FL_alpha,
+                    gamma = FL_gamma,
+                    reduction="mean"
+                    )
                 val_loss.append(loss.detach().cpu())
 
                 # Convert logits to binary segmentation mask
