@@ -5,6 +5,7 @@ from torchmetrics.functional.classification import multiclass_accuracy
 from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
 import torch.nn.functional as F
+from torchvision.ops import sigmoid_focal_loss
 from transformers import SegformerForSemanticSegmentation
 
 from transformers import SegformerImageProcessor
@@ -30,7 +31,7 @@ class SemanticSegmentationDataset(Dataset):
         self.image_processor = SegformerImageProcessor(
             image_mean = [74.90, 85.26, 80.06], # use mean calculated over our dataset
             image_std = [15.05, 13.88, 12.01], # use std calculated over our dataset
-            do_reduce_labels=False
+            do_reduce_labels=True
             )
 
         self.img_dir = os.path.join(self.root_dir, "images")
@@ -67,39 +68,17 @@ class SemanticSegmentationDataset(Dataset):
 
         return encoded_inputs
 
-##############
-# Custom Loss
-##############
-
-# higher alpha puts more emphasis on minority class 
-def focal_loss(inputs, logits, alpha=0.8, gamma=2, reduction='mean'):
-    device = logits.device
-    targets = targets.to(device)
-
-    criterion = nn.CrossEntropyLoss(reduction='none')
-    CELoss = criterion(logits, targets)
-
-    pt = torch.exp(-CELoss)
-    F_loss = alpha * (1-pt)**gamma * CELoss
-    
-    if reduction == 'mean':
-        return torch.mean(F_loss)
-    elif reduction == 'sum':
-        return torch.sum(F_loss)
-    else:
-        return F_loss
 
 #########
 # CONFIGS
 #########
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-epochs = 8
-batch_size = 5
+epochs = 400
 warmup_steps = 100
 
 # Early stopping parameters
-patience = 3
+patience = 15
 
 #########
 # SWEEP 1
@@ -114,9 +93,11 @@ sweep_config = {
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
         'freeze_encoder': {'values': [True, False]},
-        'palsa_weight': {'values': [1,2,3,6,10,15]},
         'lr': {"max": 1e-5, "min": 5e-8},
-        'weight_decay': {"max": 0.07, "min": 0.01}
+        'FL_alpha': {"max": 0.8, "min": 0.2},
+        'FL_gamma': {"max": 4, "min": 1},
+        'weight_decay': {"max": 0.07, "min": 0.01},
+        'batch_size': {"max": 16, "min": 4}
     }
 }
 
@@ -135,30 +116,31 @@ valid_size = total_size - train_size
 
 train_dataset, valid_dataset = random_split(full_dataset, [train_size, valid_size])
 
-train_dataloader = DataLoader(train_dataset, batch_size=batch_size)#, shuffle=True)
-valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size)
-
 def train():
 
     # Initialize a new wandb run
     run = wandb.init(
         config={
             "model": model_name,   
-            "epochs": epochs, 
-            "batch_size": batch_size    
+            "epochs": epochs 
             },
-        tags=["custom_loss"]
+        tags=["sigmoid_focal_loss"]
     )
 
     freeze_encoder = wandb.config.freeze_encoder
-    palsa_weight = wandb.config.palsa_weight
     lr = wandb.config.lr
+    FL_alpha = wandb.config.FL_alpha
+    FL_gamma = wandb.config.FL_gamma
     weight_decay = wandb.config.weight_decay
+    batch_size = wandb.config.batch_size
+
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size)
 
     # define model
     model = SegformerForSemanticSegmentation.from_pretrained(
         model_name,
-        num_labels=2,
+        num_labels=1,
         ignore_mismatched_sizes=True
     ) 
 
@@ -206,6 +188,7 @@ def train():
             # get the inputs;
             pixel_values = batch["pixel_values"].to(device)
             labels = batch["labels"].to(device)
+            labels = torch.where(labels == 255, 0, 1)
 
             # zero the parameter gradients
             optimizer.zero_grad()
@@ -215,9 +198,10 @@ def train():
             logits = outputs.logits
             upsampled_logits = F.interpolate(
                 logits.unsqueeze(1).float(), 
-                size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
+                # size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
+                size=[1, labels.shape[-2],labels.shape[-1]], 
                 mode="nearest")
-            loss = focal_loss(upsampled_logits.squeeze(1), labels, class_weights=[1,palsa_weight])
+            loss = sigmoid_focal_loss(upsampled_logits.squeeze(1), labels.unsqueeze(1).float(), alpha = FL_alpha, gamma = FL_gamma, reduction="mean")
             train_loss.append(loss.detach().cpu())
 
             loss.backward()
@@ -244,25 +228,34 @@ def train():
                 # get the inputs;
                 pixel_values = batch["pixel_values"].to(device)
                 labels = batch["labels"].to(device)
+                labels = torch.where(labels == 255, 0, 1)
 
                 # forward pass
                 outputs = model(pixel_values=pixel_values, labels=labels)
-                loss, logits = outputs.loss, outputs.logits
+                logits = outputs.logits
+
+                upsampled_logits = F.interpolate(
+                    logits.unsqueeze(1).float(), 
+                    # size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
+                    size=[1, labels.shape[-2],labels.shape[-1]], 
+                    mode="nearest")
+                loss = sigmoid_focal_loss(upsampled_logits.squeeze(1), labels.unsqueeze(1).float(), alpha = FL_alpha, gamma = FL_gamma, reduction="mean")
                 val_loss.append(loss.detach().cpu())
 
                 # Convert logits to binary segmentation mask
-                predicted = torch.argmax(logits, dim=1)  # Shape: (batch_size, 128, 128)
+                predicted = torch.sigmoid(logits)  # Shape: (batch_size, 128, 128)
+                predicted = torch.where(predicted > 0.5, 1, 0)  # Shape: (batch_size, 128, 128)
                 
                 # Upsample the predicted mask to match the label size
                 upsampled_predicted = F.interpolate(
                     predicted.unsqueeze(1).float(), 
-                    size=labels.shape[-2:], 
+                    size=[1, labels.shape[-2],labels.shape[-1]], 
                     mode="nearest"
                 )
 
                 # Calculate Jaccard score (IoU) for both classes
                 jaccard = jaccard_index(
-                    upsampled_predicted.squeeze(1).long(), 
+                    upsampled_predicted.squeeze(1,2).long(), 
                     labels, 
                     task="multiclass", 
                     num_classes=2, 
@@ -273,7 +266,7 @@ def train():
 
                 # Overall accuracy
                 accuracy = multiclass_accuracy(
-                    upsampled_predicted.squeeze(1).long(), 
+                    upsampled_predicted.squeeze(1,2).long(), 
                     labels, 
                     num_classes=2, 
                     average='micro'
@@ -309,8 +302,7 @@ def train():
     run.log_artifact(artifact)
 
     torch.cuda.empty_cache()
-
-    torch.cuda.empty_cache()
     del model
 
-wandb.agent(sweep_id, function = train, count = 100)
+wandb.agent(sweep_id, function = train, count = 200)
+

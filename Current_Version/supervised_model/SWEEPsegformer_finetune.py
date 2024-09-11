@@ -322,8 +322,6 @@ def train():
     run.log_artifact(artifact)
 
     torch.cuda.empty_cache()
-
-    torch.cuda.empty_cache()
     del model
 
 wandb.agent(sweep_id, function = train, count = 100)
