@@ -74,11 +74,8 @@ class SemanticSegmentationDataset(Dataset):
 #########
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-epochs = 300
+epochs = 400
 warmup_steps = 100
-# FL_alpha = 0.4
-FL_gamma = 2
-weight_decay = 0.3
 
 # Early stopping parameters
 patience = 10
@@ -92,15 +89,15 @@ model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
 
 # Define the sweep configuration
 sweep_config = {
-    'method': 'grid',
+    'method': 'random',
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
         'freeze_encoder': {'values': [True, False]},
-        'lr': {'values': [1e-5, 1e-6, 1e-7, 1e-8]},
-        'FL_alpha': {'values': [0.25, 0.5, 0.75]},
-        # 'FL_gamma': {"max": 4, "min": 1},
-        # 'weight_decay': {"max": 0.07, "min": 0.01},
-        'batch_size': {'values': [4,8,16]}
+        'lr': {"max": 1e-5, "min": 5e-8},
+        'FL_alpha': {"max": 0.8, "min": 0.2},
+        'FL_gamma': {"max": 4, "min": 1},
+        'weight_decay': {"max": 0.07, "min": 0.01},
+        'batch_size': {"max": 16, "min": 4}
     }
 }
 
@@ -124,10 +121,7 @@ def train():
     # Initialize a new wandb run
     run = wandb.init(
         config={
-            "model": model_name,
-            # 'FL_alpha': FL_alpha,
-            'FL_gamma': FL_gamma,
-            'weight_decay': weight_decay,   
+            "model": model_name,   
             "epochs": epochs 
             },
         tags=["sigmoid_focal_loss"]
@@ -136,8 +130,8 @@ def train():
     freeze_encoder = wandb.config.freeze_encoder
     lr = wandb.config.lr
     FL_alpha = wandb.config.FL_alpha
-    # FL_gamma = wandb.config.FL_gamma
-    # weight_decay = wandb.config.weight_decay
+    FL_gamma = wandb.config.FL_gamma
+    weight_decay = wandb.config.weight_decay
     batch_size = wandb.config.batch_size
 
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
