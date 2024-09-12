@@ -109,7 +109,6 @@ def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 6]): # shuld 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 epochs = 300
 batch_size = 5
-warmup_steps = 1
 weight_decay = 0.03
 
 # model_name = "nvidia/segformer-b2-finetuned-ade-512-512"
@@ -120,8 +119,8 @@ sweep_config = {
     'method': 'grid',
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
-        'palsa_weight': {'values': [1,8,18]},
-        'lr': {'values': [1e-8, 1e-7, 5e-6, 1e-6]}
+        'palsa_weight': {'values': [16,8,1]},
+        'lr': {'values': [5e-6, 1e-6, 1e-7, 1e-8]}
         }
 }
 
@@ -183,7 +182,6 @@ def train():
                 state[k] = v.to(device)
 
     best_jaccard = 0
-    epochs_no_improve = 0
     best_model_dict = None
     for epoch in range(epochs):
         model.train()
@@ -380,7 +378,7 @@ class FLSegmentationDataset(Dataset):
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 epochs = 300
-batch_size = 4
+batch_size = 5
 weight_decay = 0.03
 
 
