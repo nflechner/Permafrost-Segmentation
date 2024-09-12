@@ -111,7 +111,6 @@ epochs = 300
 batch_size = 5
 warmup_steps = 1
 weight_decay = 0.03
-patience = 100
 
 # model_name = "nvidia/segformer-b2-finetuned-ade-512-512"
 model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
@@ -121,9 +120,8 @@ sweep_config = {
     'method': 'grid',
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
-        # 'freeze_encoder': {'values': [True, False]},
         'palsa_weight': {'values': [1,8,18]},
-        'lr': {'values': [1e-6, 5e-6, 1e-7, 1e-8]}
+        'lr': {'values': [1e-8, 1e-7, 5e-6, 1e-6]}
         }
 }
 
@@ -158,7 +156,6 @@ def train():
         tags=["custom_loss"]
     )
 
-    # freeze_encoder = wandb.config.freeze_encoder
     palsa_weight = wandb.config.palsa_weight
     lr = wandb.config.lr
 
@@ -286,14 +283,9 @@ def train():
         # Early stopping check based on target Jaccard score
         if avg_target_jaccard > best_jaccard:
             best_jaccard = avg_target_jaccard
-            epochs_no_improve = 0
             # Save the best model
             best_model_dict = model.state_dict()
-        else:
-            epochs_no_improve += 1
-            if epochs_no_improve == patience:
-                print(f"Early stopping triggered. No improvement in target Jaccard score for {patience} epochs.")
-                break
+
 
     torch.save(best_model_dict, 'best_model.pth')
     artifact = wandb.Artifact('finetuned_segformer', type='model')
@@ -391,8 +383,6 @@ epochs = 300
 batch_size = 4
 weight_decay = 0.03
 
-# Early stopping parameters
-patience = 100
 
 #########
 # SWEEP 1
@@ -593,14 +583,8 @@ def train():
         # Early stopping check based on target Jaccard score
         if avg_target_jaccard > best_jaccard:
             best_jaccard = avg_target_jaccard
-            epochs_no_improve = 0
             # Save the best model
             best_model_dict = model.state_dict()
-        else:
-            epochs_no_improve += 1
-            if epochs_no_improve == patience:
-                print(f"Early stopping triggered. No improvement in target Jaccard score for {patience} epochs.")
-                break
 
     torch.save(best_model_dict, 'best_model.pth')
     artifact = wandb.Artifact('finetuned_segformer', type='model')
