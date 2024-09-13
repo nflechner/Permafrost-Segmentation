@@ -101,7 +101,6 @@ def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 6]): # shuld 
 # targets = torch.randint(0, 2, (32, 512, 512))  # [batch, height, width]
 # loss = weighted_cross_entropy_loss(logits, targets)
 
-
 #########
 # CONFIGS
 #########
@@ -119,8 +118,8 @@ sweep_config = {
     'method': 'grid',
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
-        'palsa_weight': {'values': [16,8,1]},
-        'lr': {'values': [5e-6, 1e-6, 1e-7, 1e-8]}
+        'palsa_weight': {'values': [1,8,18]},
+        'lr': {'values': [1e-8, 1e-7, 5e-6, 1e-6]}
         }
 }
 
@@ -378,7 +377,7 @@ class FLSegmentationDataset(Dataset):
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 epochs = 300
-batch_size = 5
+batch_size = 4
 weight_decay = 0.03
 
 
