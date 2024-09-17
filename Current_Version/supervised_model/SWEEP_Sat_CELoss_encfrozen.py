@@ -119,7 +119,7 @@ sweep_config = {
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
         'palsa_weight': {'values': [1,8,18]},
-        'lr': {'values': [5e-6, 1e-6, 1e-7]}
+        'lr': {'values': [5e-5, 1e-5, 5e-6, 1e-6, 1e-7]}
         }
 }
 
@@ -287,6 +287,11 @@ def train():
             # Save the best model
             best_model_dict = model.state_dict()
 
+        if epoch == 100:
+            torch.save(best_model_dict, 'best_model_at100.pth')
+            artifact = wandb.Artifact('finetuned_segformer', type='model')
+            artifact.add_file('best_model_at100.pth')
+            run.log_artifact(artifact)
 
     torch.save(best_model_dict, 'best_model.pth')
     artifact = wandb.Artifact('finetuned_segformer', type='model')
