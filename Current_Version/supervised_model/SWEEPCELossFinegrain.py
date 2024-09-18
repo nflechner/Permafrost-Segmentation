@@ -106,9 +106,8 @@ def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 6]): # shuld 
 #########
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-epochs = 300
+epochs = 150
 batch_size = 5
-weight_decay = 0.03
 
 # model_name = "nvidia/segformer-b2-finetuned-ade-512-512"
 model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
@@ -118,8 +117,9 @@ sweep_config = {
     'method': 'grid',
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
-        'palsa_weight': {'values': [1,8,18]},
-        'lr': {'values': [1e-8, 1e-7, 5e-6, 1e-6]}
+        'palsa_weight': {'values': [1,3]},
+        'lr': {'values': [1e-5, 7e-6]},
+        'weight_decay': {'values': [0.01,0.03,0.06]}
         }
 }
 
@@ -148,14 +148,14 @@ def train():
         config={
             "model": model_name,   
             "epochs": epochs, 
-            "batch_size": batch_size,    
-            "weight_decay": weight_decay
+            "batch_size": batch_size    
             },
         tags=["custom_loss"]
     )
 
     palsa_weight = wandb.config.palsa_weight
     lr = wandb.config.lr
+    weight_decay = wandb.config.weight_decay
 
     # define model
     model = SegformerForSemanticSegmentation.from_pretrained(
