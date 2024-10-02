@@ -144,18 +144,17 @@ lr = 1e-5
 weight_decay = 0.03
 
 # define model configuration with dropout probabilities
-config = SegformerConfig.from_pretrained(
-    model_name,
-    num_labels=2,
-    ignore_mismatched_sizes=True,
+config = SegformerConfig(
     hidden_dropout_prob=0.15,
     classifier_dropout_prob=0.15
 )
 
 # define model
-model = SegformerForSemanticSegmentation.from_pretrained(
+model = SegformerForSemanticSegmentation(config=config)
+model.from_pretrained(
     model_name,
-    config=config
+    num_labels=2,
+    ignore_mismatched_sizes=True,
 ) 
 
 # # define model
