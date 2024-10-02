@@ -5,9 +5,7 @@ from torchmetrics.functional.classification import multiclass_accuracy
 from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
 import torch.nn.functional as F
-from transformers import SegformerForSemanticSegmentation
-
-from transformers import SegformerImageProcessor
+from transformers import SegformerForSemanticSegmentation, SegformerImageProcessor, SegformerConfig
 import pandas as pd 
 from torch.utils.data import Dataset, random_split
 from torch.utils.data import DataLoader
@@ -43,7 +41,7 @@ class SemanticSegmentationDataset(Dataset):
             header=0
             )
         
-        dataframe = dataframe.loc[dataframe['palsa']>0]
+        dataframe = dataframe.loc[dataframe['palsa'] > 0]
         dataframe = dataframe[~dataframe['filename'].str.endswith('aug')]
         checked_names = list(dataframe['filename'])
         self.filenames = [os.path.splitext(f)[0] for f in os.listdir(self.img_dir) if f[:-4] in checked_names]
@@ -62,8 +60,8 @@ class SemanticSegmentationDataset(Dataset):
         # randomly crop + pad both image and segmentation map to same size
         encoded_inputs = self.image_processor(image, segmentation_map, return_tensors="pt")
 
-        for k,v in encoded_inputs.items():
-          encoded_inputs[k].squeeze_() # remove batch dimension
+        for k, v in encoded_inputs.items():
+            encoded_inputs[k].squeeze_()  # remove batch dimension
 
         return encoded_inputs
 
@@ -105,30 +103,17 @@ def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 6]): # shuld 
 # CONFIGS
 #########
 
+torch.manual_seed(42)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 epochs = 150
 batch_size = 5
 
-# model_name = "nvidia/segformer-b2-finetuned-ade-512-512"
-model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
-
-# Define the sweep configuration
-sweep_config = {
-    'method': 'grid',
-    'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
-    'parameters': {
-        'palsa_weight': {'values': [1,3]},
-        'lr': {'values': [1e-5, 7e-6, 4e-6]},
-        'weight_decay': {'values': [0.01,0.03,0.06]}
-        }
-}
-
-# Initialize the sweep
-sweep_id = wandb.sweep(sweep_config, project="Finetune_segformer_sweep")
+model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
+# model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
 
 # Create the full dataset
-# root_dir = "/root/Permafrost-Segmentation/Supervised_dataset"
-root_dir = "/home/nadjaflechner/Permafrost-Segmentation/Supervised_dataset"
+root_dir = "/root/Permafrost-Segmentation/Supervised_dataset"
+# root_dir = "/home/nadjaflechner/Permafrost-Segmentation/Supervised_dataset"
 full_dataset = SemanticSegmentationDataset(root_dir)
 
 # Split the dataset into 85% train and 15% validation
@@ -138,159 +123,183 @@ valid_size = total_size - train_size
 
 train_dataset, valid_dataset = random_split(full_dataset, [train_size, valid_size])
 
-train_dataloader = DataLoader(train_dataset, batch_size=batch_size)#, shuffle=True)
+train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size)
 
-def train():
+# Initialize a new wandb run
+run = wandb.init(
+    config={
+        "model": model_name,   
+        "epochs": epochs, 
+        "batch_size": batch_size,
+        "palsa_weight": 1,
+        "lr": 1e-5,
+        "weight_decay": 0.03    
+        },
+    tags=["custom_loss"]
+)
 
-    # Initialize a new wandb run
-    run = wandb.init(
-        config={
-            "model": model_name,   
-            "epochs": epochs, 
-            "batch_size": batch_size    
-            },
-        tags=["custom_loss"]
-    )
+palsa_weight = 1
+lr = 1e-5
+weight_decay = 0.03
 
-    palsa_weight = wandb.config.palsa_weight
-    lr = wandb.config.lr
-    weight_decay = wandb.config.weight_decay
+# define model configuration with dropout probabilities
+config = SegformerConfig.from_pretrained(
+    model_name,
+    num_labels=2,
+    ignore_mismatched_sizes=True,
+    hidden_dropout_prob=0.15,
+    classifier_dropout_prob=0.15
+)
 
-    # define model
-    model = SegformerForSemanticSegmentation.from_pretrained(
-        model_name,
-        num_labels=2,
-        ignore_mismatched_sizes=True
-    ) 
+# define model
+model = SegformerForSemanticSegmentation.from_pretrained(
+    model_name,
+    config=config
+) 
 
-    # Set learnable layers
-    for param in model.parameters():
-        param.requires_grad = True
+# # define model
+# model = SegformerForSemanticSegmentation.from_pretrained(
+#     model_name,
+#     num_labels=2,
+#     ignore_mismatched_sizes=True
+# ) 
 
-    # model to device
-    model.to(device)
+# Set learnable layers
+for param in model.parameters():
+    param.requires_grad = True
 
-    # define optimizer and loss
-    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay = weight_decay)
+# model to device
+model.to(device)
 
-    # Move optimizer to GPU (possibly unneccessary)
-    for state in optimizer.state.values():
-        for k, v in state.items():
-            if isinstance(v, torch.Tensor):
-                state[k] = v.to(device)
+# define optimizer and loss
+optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-    best_jaccard = 0
-    best_model_dict = None
-    for epoch in range(epochs):
-        model.train()
-        print(f"Epoch: {epoch}")
-        train_loss = []
-        progress_bar = tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{epochs}")
-        for batch in progress_bar:  
+# Move optimizer to GPU (possibly unnecessary)
+for state in optimizer.state.values():
+    for k, v in state.items():
+        if isinstance(v, torch.Tensor):
+            state[k] = v.to(device)
+
+best_jaccard = 0
+best_model_dict = None
+for epoch in range(epochs):
+    model.train()
+    print(f"Epoch: {epoch}")
+    train_loss = []
+    progress_bar = tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{epochs}")
+    for batch in progress_bar:  
+        # get the inputs;
+        pixel_values = batch["pixel_values"].to(device)
+        labels = batch["labels"].to(device)
+
+        # zero the parameter gradients
+        optimizer.zero_grad()
+
+        # forward + backward + optimize
+        outputs = model(pixel_values=pixel_values, labels=labels)
+        logits = outputs.logits
+        upsampled_logits = F.interpolate(
+            logits.unsqueeze(1).float(), 
+            size=[logits.shape[1], labels.shape[-2], labels.shape[-1]], 
+            mode="nearest")
+        loss = weighted_cross_entropy_loss(upsampled_logits.squeeze(1), labels, class_weights=[1, palsa_weight])
+        
+        # L1 regularization
+        l1_lambda = 0.001
+        l1_norm = sum(p.abs().sum() for p in model.parameters())
+        loss += l1_lambda * l1_norm
+        
+        train_loss.append(loss.detach().cpu())
+
+        loss.backward()
+        optimizer.step()
+
+        # Update progress bar
+        progress_bar.set_postfix({"Loss": f"{loss.item():.4f}"})
+
+    avg_train_loss = sum(train_loss) / len(train_loss)
+    wandb.log({"train_loss": avg_train_loss})
+
+    model.eval()
+    bg_jaccard_scores = []
+    target_jaccard_scores = []
+    val_loss = []
+    overall_accuracy = []
+
+    with torch.no_grad():
+        for batch in valid_dataloader:
             # get the inputs;
             pixel_values = batch["pixel_values"].to(device)
             labels = batch["labels"].to(device)
 
-            # zero the parameter gradients
-            optimizer.zero_grad()
-
-            # forward + backward + optimize
+            # forward pass
             outputs = model(pixel_values=pixel_values, labels=labels)
             logits = outputs.logits
             upsampled_logits = F.interpolate(
                 logits.unsqueeze(1).float(), 
-                size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
+                size=[logits.shape[1], labels.shape[-2], labels.shape[-1]], 
                 mode="nearest")
-            loss = weighted_cross_entropy_loss(upsampled_logits.squeeze(1), labels, class_weights=[1,palsa_weight])
-            train_loss.append(loss.detach().cpu())
+            loss = weighted_cross_entropy_loss(upsampled_logits.squeeze(1), labels, class_weights=[1, palsa_weight])
+                            
+            val_loss.append(loss.detach().cpu())
 
-            loss.backward()
-            optimizer.step()
+            # Convert logits to binary segmentation mask
+            predicted = torch.argmax(logits, dim=1)  # Shape: (batch_size, 128, 128)
+            
+            # Upsample the predicted mask to match the label size
+            upsampled_predicted = F.interpolate(
+                predicted.unsqueeze(1).float(), 
+                size=labels.shape[-2:], 
+                mode="nearest"
+            )
 
-            # Update progress bar
-            progress_bar.set_postfix({"Loss": f"{loss.item():.4f}"})
+            # Calculate Jaccard score (IoU) for both classes
+            jaccard = jaccard_index(
+                upsampled_predicted.squeeze(1).long(), 
+                labels, 
+                task="multiclass", 
+                num_classes=2, 
+                average='none'
+            )
+            bg_jaccard_scores.append(jaccard[0])
+            target_jaccard_scores.append(jaccard[1])
 
-        avg_train_loss = sum(train_loss) / len(train_loss)
-        wandb.log({"train_loss": avg_train_loss})
+            # Overall accuracy
+            accuracy = multiclass_accuracy(
+                upsampled_predicted.squeeze(1).long(), 
+                labels, 
+                num_classes=2, 
+                average='micro'
+            )
+            overall_accuracy.append(accuracy)
 
-        model.eval()
-        bg_jaccard_scores = []
-        target_jaccard_scores = []
-        val_loss = []
-        overall_accuracy = []
+        avg_val_loss = sum(val_loss) / len(val_loss)
+        wandb.log({"val_loss": avg_val_loss})
 
-        with torch.no_grad():
-            for batch in valid_dataloader:
-                # get the inputs;
-                pixel_values = batch["pixel_values"].to(device)
-                labels = batch["labels"].to(device)
+    avg_bg_jaccard = sum(bg_jaccard_scores) / len(bg_jaccard_scores)
+    avg_target_jaccard = sum(target_jaccard_scores) / len(target_jaccard_scores)
+    avg_overall_accuracy = sum(overall_accuracy) / len(overall_accuracy)
+    wandb.log({"background_jaccard": avg_bg_jaccard})
+    wandb.log({"target_jaccard": avg_target_jaccard})
+    wandb.log({"avg_overall_accuracy": avg_overall_accuracy})
+    print(f"Epoch {epoch}, Average Background Jaccard Score: {avg_bg_jaccard:.4f}, Target Class Jaccard Score: {avg_target_jaccard:.4f}")
+    
+    # Save best model 
+    if avg_target_jaccard > best_jaccard:
+        best_jaccard = avg_target_jaccard
+        # Save the best model
+        best_model_dict = model.state_dict()
+    if epoch in [50,100,150]:
+        model_dict = model.state_dict()
+        torch.save(model_dict, f'model{epoch}.pth')
+        artifact = wandb.Artifact('intermediate_segformer', type='model')
+        artifact.add_file(f'model{epoch}.pth')
+        run.log_artifact(artifact)
 
-                # forward pass
-                outputs = model(pixel_values=pixel_values, labels=labels)
-                logits = outputs.logits
-                upsampled_logits = F.interpolate(
-                    logits.unsqueeze(1).float(), 
-                    size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
-                    mode="nearest")
-                loss = weighted_cross_entropy_loss(upsampled_logits.squeeze(1), labels, class_weights=[1,palsa_weight])
-                val_loss.append(loss.detach().cpu())
+torch.save(best_model_dict, 'best_model.pth')
+artifact = wandb.Artifact('finetuned_segformer', type='model')
+artifact.add_file('best_model.pth')
+run.log_artifact(artifact)
 
-                # Convert logits to binary segmentation mask
-                predicted = torch.argmax(logits, dim=1)  # Shape: (batch_size, 128, 128)
-                
-                # Upsample the predicted mask to match the label size
-                upsampled_predicted = F.interpolate(
-                    predicted.unsqueeze(1).float(), 
-                    size=labels.shape[-2:], 
-                    mode="nearest"
-                )
-
-                # Calculate Jaccard score (IoU) for both classes
-                jaccard = jaccard_index(
-                    upsampled_predicted.squeeze(1).long(), 
-                    labels, 
-                    task="multiclass", 
-                    num_classes=2, 
-                    average='none'
-                )
-                bg_jaccard_scores.append(jaccard[0])
-                target_jaccard_scores.append(jaccard[1])
-
-                # Overall accuracy
-                accuracy = multiclass_accuracy(
-                    upsampled_predicted.squeeze(1).long(), 
-                    labels, 
-                    num_classes=2, 
-                    average='micro'
-                )
-                overall_accuracy.append(accuracy)
-
-            avg_val_loss = sum(val_loss) / len(val_loss)
-            wandb.log({"val_loss": avg_val_loss})
-
-        avg_bg_jaccard = sum(bg_jaccard_scores) / len(bg_jaccard_scores)
-        avg_target_jaccard = sum(target_jaccard_scores) / len(target_jaccard_scores)
-        avg_overall_accuracy = sum(overall_accuracy) / len(overall_accuracy)
-        wandb.log({"background_jaccard": avg_bg_jaccard})
-        wandb.log({"target_jaccard": avg_target_jaccard})
-        wandb.log({"avg_overall_accuracy": avg_overall_accuracy})
-        print(f"Epoch {epoch}, Average Background Jaccard Score: {avg_bg_jaccard:.4f}, Target Class Jaccard Score: {avg_target_jaccard:.4f}")
-        
-        # Early stopping check based on target Jaccard score
-        if avg_target_jaccard > best_jaccard:
-            best_jaccard = avg_target_jaccard
-            # Save the best model
-            best_model_dict = model.state_dict()
-
-
-    torch.save(best_model_dict, 'best_model.pth')
-    artifact = wandb.Artifact('finetuned_segformer', type='model')
-    artifact.add_file('best_model.pth')
-    run.log_artifact(artifact)
-
-    torch.cuda.empty_cache()
-    del model
-
-wandb.agent(sweep_id, function = train, count = 100)
 
