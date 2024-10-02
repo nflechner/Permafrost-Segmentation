@@ -128,6 +128,7 @@ valid_dataloader = DataLoader(valid_dataset, batch_size=batch_size)
 
 # Initialize a new wandb run
 run = wandb.init(
+    project = "Segformer",
     config={
         "model": model_name,   
         "epochs": epochs, 
