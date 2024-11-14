@@ -120,9 +120,7 @@ class TestSet(Dataset):
 
         # configure labels file.
         # only use samples where MS-Backe difference is <10%
-        unfiltered_labels_df = pd.read_csv(self.labels_path, index_col=0)
-        self.labels_df = unfiltered_labels_df.loc[
-            (unfiltered_labels_df['difference']<10)]
+        self.labels_df = pd.read_csv(self.labels_path, index_col=0)
 
 
     def __len__(self):
