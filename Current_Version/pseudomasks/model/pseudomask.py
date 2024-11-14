@@ -132,6 +132,35 @@ class Pseudomasks():
         if save_plot: self.generate_plot(cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt)
         
         return pseudomask # bool np.array [400,400]
+    
+    def generate_thresholded_CAM(self, im, gt, save_plot: bool):
+
+        #get the last convolution
+        sf = SaveFeatures(self.model.features[-4])
+        im = Variable(im).to(self.device)
+        outputs = self.model(im).to(self.device)
+
+        # generate CAM
+        sf.remove()
+        arr = sf.features.cpu().detach()#.numpy()
+
+        pals_acts = torch.nn.functional.interpolate(
+            input = arr[:,1,:,:].unsqueeze(1),
+            scale_factor = im.shape[3]/arr.shape[3],
+            mode='bilinear'
+        ).cpu().detach()
+        
+        # select pixels based on activation threshold
+        # if we include an image-specific threshold 
+        if self.std_from_mean: 
+            im_based_act_threshold = pals_acts.view(-1).mean() + self.std_from_mean * torch.std(pals_acts, dim=None)
+            max_thresh = max([self.cam_threshold, im_based_act_threshold])
+            pixels_activated = torch.where(torch.Tensor(pals_acts) > max_thresh, 1, 0).squeeze(0).permute(1,2,0).numpy()
+         # if we use the global threshold 
+        else:
+            pixels_activated = torch.where(torch.Tensor(pals_acts) > self.cam_threshold, 1, 0).squeeze(0).permute(1,2,0).numpy()
+
+        return pixels_activated # bool np.array [400,400]
 
     def generate_plot(self, cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt):
 
