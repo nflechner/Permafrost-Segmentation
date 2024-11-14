@@ -25,7 +25,7 @@ sweep_configuration = {
     "name": "CAM_threshold",
     "metric": {"goal": "maximize", "name": "test_jaccard_palsa"},
     "parameters": {
-        "cam_threshold_factor": {"values": [0.5,0.6,0.7,0.8,0.9,1]}
+        "cam_threshold_factor": {"values": [0.8,1.2,1.5,1.8]}
         # "std_from_mean": {"values": [0.5,0.6,0.7,0.8,0.9,1]}
     },
 }
@@ -44,7 +44,7 @@ def train_test_model():
 
     # collect run configs
     cam_threshold_factor = wandb.config.cam_threshold_factor
-    std_from_mean = 0
+    std_from_mean = None
 
     # define model
     model_path = "nadjaflechner/VGG_CAMs/classification_model:v61"
