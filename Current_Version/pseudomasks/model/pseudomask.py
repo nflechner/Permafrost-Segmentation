@@ -8,6 +8,7 @@ from pysnic.algorithms.snic import snic
 from skimage.segmentation import mark_boundaries
 from torch.autograd import Variable
 from torchmetrics.classification import MulticlassJaccardIndex, MulticlassAccuracy, MulticlassF1Score
+from skimage.filters import threshold_otsu
 
 from model.cnn_classifier import model_4D
 from utils.data_modules import SaveFeatures
@@ -54,6 +55,50 @@ class Pseudomasks():
         model.load_state_dict(state_dict)
         model.eval()
         self.model = model
+
+
+    def test_loop_otsu_CAMs(self, test_loader):
+
+        running_jaccard_nopalsa = 0
+        running_accuracy_nopalsa = 0
+        running_F1_nopalsa = 0
+
+        running_jaccard_palsa = 0
+        running_accuracy_palsa = 0
+        running_F1_palsa = 0
+
+        running_OA = 0
+        running_OJ = 0
+
+        for im, lab, _, gt_mask in test_loader:
+            pseudomask = self.generate_otsu_CAM(im, gt_mask, save_plot=False) # TODO make saveplot true sometimes
+            # calculate metrics to evaluate model on test set
+            generated_mask = torch.Tensor(pseudomask).int().view(400,400).to(self.device)
+            groundtruth_mask = torch.Tensor(gt_mask).int().view(400,400).to(self.device)
+            jaccard, accuracy, F1, OA, OJ = self.calc_metrics(generated_mask, groundtruth_mask)
+
+            # unpack tuples of per class calculated metrics
+            running_jaccard_nopalsa += jaccard[0]
+            running_accuracy_nopalsa += accuracy[0]
+            running_F1_nopalsa += F1[0]
+
+            running_jaccard_palsa += jaccard[1]
+            running_accuracy_palsa += accuracy[1]
+            running_F1_palsa += F1[1]
+
+            running_OA += OA
+            running_OJ += OJ
+
+        wandb.log({"test_jaccard_nopalsa": running_jaccard_nopalsa / len(test_loader.dataset)})
+        wandb.log({"test_accuracy_nopalsa": running_accuracy_nopalsa / len(test_loader.dataset)})
+        wandb.log({"test_F1_nopalsa": running_F1_nopalsa / len(test_loader.dataset)})
+        wandb.log({"test_overall_accuracy": running_OA / len(test_loader.dataset)})
+        wandb.log({"test_overall_jaccard": running_OJ / len(test_loader.dataset)})
+
+        wandb.log({"test_jaccard_palsa": running_jaccard_palsa / 111}) # hardcoded the num of samples in testdata that have palsa
+        wandb.log({"test_accuracy_palsa": running_accuracy_palsa / 111}) # TODO maybe not make it hardcoded.. 
+        wandb.log({"test_F1_palsa": running_F1_palsa / 111})
+
 
     def test_loop_thresholdedCAMs(self, test_loader):
 
@@ -175,7 +220,31 @@ class Pseudomasks():
         if save_plot: self.generate_plot(cpu_img, pals_acts, im, pixels_activated, superpixels, pseudomask, gt)
         
         return pseudomask # bool np.array [400,400]
-    
+
+    def generate_otsu_CAM(self, im, gt, save_plot: bool):
+
+        #get the last convolution
+        sf = SaveFeatures(self.model.features[-4])
+        im = Variable(im).to(self.device)
+        outputs = self.model(im).to(self.device)
+
+        # generate CAM
+        sf.remove()
+        arr = sf.features.cpu().detach()#.numpy()
+
+        pals_acts = torch.nn.functional.interpolate(
+            input = arr[:,1,:,:].unsqueeze(1),
+            scale_factor = im.shape[3]/arr.shape[3],
+            mode='bilinear'
+        ).cpu().detach()
+
+        cam = pals_acts / pals_acts.max()
+        cam = np.array(cam.squeeze())
+        threshold = threshold_otsu(cam)
+        binary_mask = (cam > threshold).astype(np.uint8)
+
+        return binary_mask # bool np.array [400,400]
+
     def generate_thresholded_CAM(self, im, gt, save_plot: bool):
 
         #get the last convolution
