@@ -120,8 +120,8 @@ class TestSet(Dataset):
 
         # configure labels file.
         # only use samples where MS-Backe difference is <10%
-        self.labels_df = pd.read_csv(self.labels_path, index_col=0)
-
+        labels_df = pd.read_csv(self.labels_path, index_col=0)
+        self.labels_df = labels_df[labels_df["palsa_percentage"]>0]
 
     def __len__(self):
         return len(self.labels_df)
