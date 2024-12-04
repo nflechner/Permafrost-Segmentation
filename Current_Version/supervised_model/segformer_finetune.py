@@ -223,7 +223,7 @@ for epoch in range(epochs):
                 logits.unsqueeze(1).float(), 
                 size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
                 mode="nearest")
-            loss = weighted_cross_entropy_loss(upsampled_logits.squeeze(1), labels, class_weights=[1,palsa_weight])
+            loss = weighted_cross_entropy_loss(upsampled_logits.squeeze(1), labels)
             val_loss.append(loss.detach().cpu())
 
             # Convert logits to binary segmentation mask
