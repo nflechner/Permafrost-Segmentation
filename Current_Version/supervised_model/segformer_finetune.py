@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 from torchmetrics.functional import jaccard_index
+from torchmetrics.functional.classification import multiclass_accuracy
 from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
 import torch.nn.functional as F
@@ -106,17 +107,13 @@ def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 1]): # shuld 
 #########
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-epochs = 200
+epochs = 100
 batch_size = 5
-lr = 5e-6 # in satellite segformer used 7e-5
-warmup_steps = 100 # Adjust this value as needed
+lr = 5e-7 # in satellite segformer used 7e-5
 
 # Early stopping parameters
-patience = 5
 best_jaccard = 0
-epochs_no_improve = 0
 
-freeze_encoder = True
 # model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
 model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
 
@@ -127,9 +124,6 @@ run = wandb.init(
     config={
         "epochs": epochs,
         "lr": lr,
-        "warmup_steps": warmup_steps,
-        "patience": patience,
-        "freeze_encoder": freeze_encoder,
         "model_name": model_name
         }
 )
@@ -163,18 +157,6 @@ model = SegformerForSemanticSegmentation.from_pretrained(
 for param in model.parameters():
     param.requires_grad = True
 
-# Freeze encoder layers
-if freeze_encoder == True:
-    for param in model.segformer.encoder.parameters():
-        param.requires_grad = False
-
-# # Optionally, unfreeze the last few layers of the encoder
-# # Adjust the number of unfrozen blocks as needed
-# num_unfrozen_blocks = 4
-# for i in range(len(model.segformer.encoder.block) - num_unfrozen_blocks, len(model.segformer.encoder.block)):
-#     for param in model.segformer.encoder.block[i].parameters():
-#         param.requires_grad = True
-
 # model to device
 model.to(device)
 
@@ -183,19 +165,14 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay = 0.03)
 
 criterion = weighted_cross_entropy_loss
 
-# define scheduler
-total_steps = len(train_dataloader) * epochs
-scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_steps)
-
 # Move optimizer to GPU (possibly unneccessary)
 for state in optimizer.state.values():
     for k, v in state.items():
         if isinstance(v, torch.Tensor):
             state[k] = v.to(device)
 
-
+best_model_dict = None
 for epoch in range(epochs):
-
     model.train()
     print(f"Epoch: {epoch}")
     train_loss = []
@@ -220,10 +197,9 @@ for epoch in range(epochs):
 
         loss.backward()
         optimizer.step()
-        scheduler.step()  # Update learning rate
 
         # Update progress bar
-        progress_bar.set_postfix({"Loss": f"{loss.item():.4f}", "LR": f"{scheduler.get_last_lr()[0]:.6f}"})
+        progress_bar.set_postfix({"Loss": f"{loss.item():.4f}"})
 
     avg_train_loss = sum(train_loss) / len(train_loss)
     wandb.log({"train_loss": avg_train_loss})
@@ -232,6 +208,7 @@ for epoch in range(epochs):
     bg_jaccard_scores = []
     target_jaccard_scores = []
     val_loss = []
+    overall_accuracy = []
 
     with torch.no_grad():
         for batch in valid_dataloader:
@@ -241,42 +218,62 @@ for epoch in range(epochs):
 
             # forward pass
             outputs = model(pixel_values=pixel_values, labels=labels)
-            loss, logits = outputs.loss, outputs.logits
+            logits = outputs.logits
+            upsampled_logits = F.interpolate(
+                logits.unsqueeze(1).float(), 
+                size=[logits.shape[1],labels.shape[-2],labels.shape[-1]], 
+                mode="nearest")
+            loss = weighted_cross_entropy_loss(upsampled_logits.squeeze(1), labels)
             val_loss.append(loss.detach().cpu())
 
             # Convert logits to binary segmentation mask
             predicted = torch.argmax(logits, dim=1)  # Shape: (batch_size, 128, 128)
             
             # Upsample the predicted mask to match the label size
-            upsampled_predicted = F.interpolate(predicted.unsqueeze(1).float(), size=labels.shape[-2:], mode="nearest")
+            upsampled_predicted = F.interpolate(
+                predicted.unsqueeze(1).float(), 
+                size=labels.shape[-2:], 
+                mode="nearest"
+            )
 
             # Calculate Jaccard score (IoU) for both classes
-            jaccard = jaccard_index(upsampled_predicted.squeeze(1).long(), labels, task="multiclass", num_classes=2, average='none')
+            jaccard = jaccard_index(
+                upsampled_predicted.squeeze(1).long(), 
+                labels, 
+                task="multiclass", 
+                num_classes=2, 
+                average='none'
+            )
             bg_jaccard_scores.append(jaccard[0])
             target_jaccard_scores.append(jaccard[1])
+
+            # Overall accuracy
+            accuracy = multiclass_accuracy(
+                upsampled_predicted.squeeze(1).long(), 
+                labels, 
+                num_classes=2, 
+                average='micro'
+            )
+            overall_accuracy.append(accuracy)
 
         avg_val_loss = sum(val_loss) / len(val_loss)
         wandb.log({"val_loss": avg_val_loss})
 
     avg_bg_jaccard = sum(bg_jaccard_scores) / len(bg_jaccard_scores)
     avg_target_jaccard = sum(target_jaccard_scores) / len(target_jaccard_scores)
+    avg_overall_accuracy = sum(overall_accuracy) / len(overall_accuracy)
     wandb.log({"background_jaccard": avg_bg_jaccard})
     wandb.log({"target_jaccard": avg_target_jaccard})
+    wandb.log({"avg_overall_accuracy": avg_overall_accuracy})
     print(f"Epoch {epoch}, Average Background Jaccard Score: {avg_bg_jaccard:.4f}, Target Class Jaccard Score: {avg_target_jaccard:.4f}")
     
-    # # Early stopping check based on target Jaccard score
-    # if avg_jaccard > best_jaccard:
-    #     best_jaccard = avg_jaccard
-    #     epochs_no_improve = 0
-    #     # Save the best model
-    #     torch.save(model.state_dict(), 'best_model.pth')
-    # else:
-    #     epochs_no_improve += 1
-    #     if epochs_no_improve == patience:
-    #         print(f"Early stopping triggered. No improvement in target Jaccard score for {patience} epochs.")
-    #         break
-    
+    # Early stopping check based on target Jaccard score
+    if avg_target_jaccard > best_jaccard:
+        best_jaccard = avg_target_jaccard
+        # Save the best model
+        best_model_dict = model.state_dict()
 
+torch.save(best_model_dict, 'best_model.pth')
 artifact = wandb.Artifact('finetuned_segformer', type='model')
 artifact.add_file('best_model.pth')
 run.log_artifact(artifact)
