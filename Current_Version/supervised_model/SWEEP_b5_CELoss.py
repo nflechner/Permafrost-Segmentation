@@ -4,6 +4,7 @@ from torchmetrics.functional import jaccard_index
 from torchmetrics.functional.classification import multiclass_accuracy
 from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
+from transformers import get_cosine_schedule_with_warmup
 import torch.nn.functional as F
 from transformers import SegformerForSemanticSegmentation
 
@@ -71,7 +72,7 @@ class SemanticSegmentationDataset(Dataset):
 # Custom Loss
 ##############
 
-def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 6]): # shuld be 1,24
+def weighted_cross_entropy_loss(logits, targets, class_weights): # shuld be 1,24
     """
     Calculate weighted cross-entropy loss for binary segmentation using PyTorch's built-in functions.
     
@@ -107,8 +108,9 @@ def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 6]): # shuld 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 epochs = 100
-batch_size = 5
-weight_decay = 0.03
+batch_size = 8
+weight_decay = 1e-4
+freeze_enc = False
 
 model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
 # model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
@@ -118,8 +120,8 @@ sweep_config = {
     'method': 'grid',
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
-        'palsa_weight': {'values': [32]},
-        'lr': {'values': [1e-8, 1e-7]}
+        'palsa_weight': {'values': [1,4]},
+        'lr': {'values': [5e-6, 5e-8]}
         }
 }
 
@@ -149,9 +151,10 @@ def train():
         config={
             "model": model_name,   
             "epochs": epochs, 
-            "batch_size": batch_size,    
+            "batch_size": batch_size,  
+            "freeze_encoder": freeze_enc,  
             "weight_decay": weight_decay,
-            "model": 'satellite model'
+            "LR_schedule": 'cosine_warmup'
             },
         tags=["custom_loss"]
     )
@@ -170,11 +173,24 @@ def train():
     for param in model.parameters():
         param.requires_grad = True
 
+    # Freeze encoder layers
+    if freeze_enc == True:
+        for param in model.segformer.encoder.parameters():
+            param.requires_grad = False
+
     # model to device
     model.to(device)
 
     # define optimizer and loss
     optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay = weight_decay)
+    total_steps = len(train_dataloader) * epochs
+    warmup_steps = int(0.1 * total_steps)  # 10% of steps for warmup
+
+    scheduler = get_cosine_schedule_with_warmup(
+        optimizer,
+        num_warmup_steps=warmup_steps,
+        num_training_steps=total_steps
+    )
 
     # Move optimizer to GPU (possibly unneccessary)
     for state in optimizer.state.values():
@@ -209,6 +225,8 @@ def train():
 
             loss.backward()
             optimizer.step()
+            scheduler.step()
+            optimizer.zero_grad()
 
             # Update progress bar
             progress_bar.set_postfix({"Loss": f"{loss.item():.4f}"})
