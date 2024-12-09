@@ -106,7 +106,7 @@ def weighted_cross_entropy_loss(logits, targets, class_weights=[1, 6]): # shuld 
 #########
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-epochs = 200
+epochs = 100
 batch_size = 5
 weight_decay = 0.03
 
@@ -118,16 +118,17 @@ sweep_config = {
     'method': 'grid',
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
-        'palsa_weight': {'values': [18, 8, 1]},
-        'lr': {'values': [5e-6, 1e-6, 1e-7, 1e-8]}
+        'palsa_weight': {'values': [32]},
+        'lr': {'values': [1e-8, 1e-7]}
         }
 }
 
 # Initialize the sweep
-sweep_id = wandb.sweep(sweep_config, project="Finetune_segformer_sweep")
+sweep_id = wandb.sweep(sweep_config, project="Finetune_segformer")
 
 # Create the full dataset
-root_dir = "/root/Permafrost-Segmentation/Supervised_dataset"
+root_dir = "/root/Permafrost-Segmentation/Pseudomasks/TRAIN"
+# root_dir = "/root/Permafrost-Segmentation/Supervised_dataset"
 # root_dir = "/home/nadjaflechner/Permafrost-Segmentation/Supervised_dataset"
 full_dataset = SemanticSegmentationDataset(root_dir)
 
@@ -149,7 +150,8 @@ def train():
             "model": model_name,   
             "epochs": epochs, 
             "batch_size": batch_size,    
-            "weight_decay": weight_decay
+            "weight_decay": weight_decay,
+            "model": 'satellite model'
             },
         tags=["custom_loss"]
     )
