@@ -2,6 +2,7 @@ import torch
 from torch import nn
 from torchmetrics.functional import jaccard_index
 from torchmetrics.functional.classification import multiclass_accuracy
+from torchmetrics.functional.classification import multiclass_accuracy
 from tqdm import tqdm
 from transformers import get_linear_schedule_with_warmup
 import torch.nn.functional as F
