@@ -108,11 +108,11 @@ def weighted_cross_entropy_loss(logits, targets, class_weights): # shuld be 1,24
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 epochs = 100
-batch_size = 8
+batch_size = 4
 weight_decay = 1e-4
 freeze_enc = False
 
-model_name = "nvidia/segformer-b5-finetuned-ade-640-640"
+model_name = "nvidia/segformer-b0-finetuned-ade-512-512"
 # model_name = "sawthiha/segformer-b0-finetuned-deprem-satellite"
 
 # Define the sweep configuration
@@ -120,8 +120,8 @@ sweep_config = {
     'method': 'grid',
     'metric': {'name': 'target_jaccard', 'goal': 'maximize'},
     'parameters': {
-        'palsa_weight': {'values': [1,4]},
-        'lr': {'values': [5e-6, 5e-8]}
+        'palsa_weight': {'values': [1,4,16]},
+        'lr': {'values': [1e-4, 1e-6, 1e-8]}
         }
 }
 
